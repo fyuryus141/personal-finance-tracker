@@ -84,6 +84,53 @@ app.get('/users/:id', async (req, res) => {
   res.json({ tier: (user as any).tier });
 });
 
+// Get user subscriptions
+app.get('/subscriptions', async (req, res) => {
+  const { userId } = req.query;
+  try {
+    const subscriptions = await prisma.subscription.findMany({
+      where: { userId: Number(userId) },
+      include: { payments: true },
+      orderBy: { startDate: 'desc' },
+    });
+    res.json(subscriptions);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch subscriptions' });
+  }
+});
+
+// Get user payments
+app.get('/payments', async (req, res) => {
+  const { userId } = req.query;
+  try {
+    const payments = await prisma.payment.findMany({
+      where: { userId: Number(userId) },
+      include: { subscription: true },
+      orderBy: { timestamp: 'desc' },
+    });
+    res.json(payments);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch payments' });
+  }
+});
+
+// Cancel subscription (set status to CANCELLED)
+app.put('/subscriptions/:id/cancel', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const subscription = await prisma.subscription.update({
+      where: { id: Number(id) },
+      data: { status: 'CANCELLED' },
+    });
+    res.json(subscription);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to cancel subscription' });
+  }
+});
+
 // Auth middleware
 const authMiddleware = async (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;
@@ -550,6 +597,107 @@ function parseReceiptText(text: string) {
 
   return { amount, merchant, date };
 }
+
+// Ko-fi Webhook
+app.post('/webhooks/kofi', async (req, res) => {
+  try {
+    console.log('Ko-fi webhook received:', req.body);
+
+    // Basic verification: Check if from Ko-fi IPs (simplified, in production use proper check)
+    const kofiIPs = ['104.18.0.0/20', '172.64.0.0/13', '162.158.0.0/15']; // Cloudflare IPs, Ko-fi uses Cloudflare
+    // For simplicity, skip IP check in dev
+
+    const { data } = req.body; // Ko-fi sends data in 'data' field
+    if (!data) {
+      return res.status(400).json({ error: 'Invalid webhook data' });
+    }
+
+    const { verification_token, message_id, timestamp, type, is_public, from_name, message, amount, url, email, currency, is_subscription_payment, is_first_subscription_payment, kofi_transaction_id } = data;
+
+    // Verify verification_token if set
+    const expectedToken = process.env.KOFI_VERIFICATION_TOKEN;
+    if (expectedToken && verification_token !== expectedToken) {
+      console.error('Invalid verification token');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Find user by email
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      console.error('User not found for email:', email);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Create payment record
+    const payment = await prisma.payment.create({
+      data: {
+        userId: user.id,
+        amount,
+        currency,
+        status: 'SUCCESS',
+        kofiId: kofi_transaction_id,
+        timestamp: new Date(timestamp),
+      },
+    });
+
+    // Determine tier based on amount
+    let tier = 'FREE';
+    if (amount >= 10) {
+      tier = 'BUSINESS';
+    } else if (amount >= 5) {
+      tier = 'PREMIUM';
+    }
+
+    // Find or create subscription
+    let subscription = await prisma.subscription.findFirst({
+      where: { userId: user.id, status: 'ACTIVE' },
+    });
+
+    if (!subscription) {
+      // Create new subscription
+      subscription = await prisma.subscription.create({
+        data: {
+          userId: user.id,
+          tier,
+          amount,
+          startDate: new Date(),
+          endDate: is_subscription_payment ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null, // 30 days if recurring
+          kofiId: kofi_transaction_id,
+        },
+      });
+    } else {
+      // Update existing subscription
+      if (is_subscription_payment) {
+        // Extend by 30 days
+        const currentEnd = subscription.endDate || new Date();
+        subscription = await prisma.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            endDate: new Date(currentEnd.getTime() + 30 * 24 * 60 * 60 * 1000),
+          },
+        });
+      }
+    }
+
+    // Link payment to subscription
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { subscriptionId: subscription.id },
+    });
+
+    // Update user tier
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { tier },
+    });
+
+    console.log('Payment processed successfully for user:', user.email);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

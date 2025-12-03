@@ -21,6 +21,8 @@ model User {
   budgets Budget[]
   bankAccounts BankAccount[]
   feedbacks Feedback[]
+  subscriptions Subscription[]
+  payments Payment[]
   // Add more fields as needed
 }
 
@@ -83,4 +85,30 @@ model Feedback {
   message String
   type    String // 'feedback' or 'bug'
   user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tier      String   // "PREMIUM" or "BUSINESS"
+  amount    Float
+  status    String   @default("ACTIVE") // ACTIVE, CANCELLED, EXPIRED
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  kofiId    String?  // Ko-fi transaction ID
+  user      User     @relation(fields: [userId], references: [id])
+  payments  Payment[]
+}
+
+model Payment {
+  id             Int          @id @default(autoincrement())
+  userId         Int
+  amount         Float
+  currency       String       @default("USD")
+  status         String       // SUCCESS, FAILED, PENDING
+  kofiId         String       @unique
+  timestamp      DateTime     @default(now())
+  subscriptionId Int?
+  user           User         @relation(fields: [userId], references: [id])
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
 }
