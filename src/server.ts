@@ -59,6 +59,13 @@ app.post('/auth/register', async (req, res) => {
     const user = await prisma.user.create({
       data: { email, password: hashedPassword, name },
     });
+    // Create default categories for the new user
+    const defaultCategories = ['Travel', 'Entertainment', 'Shopping', 'Utilities', 'Healthcare', 'Education', 'Groceries'];
+    for (const name of defaultCategories) {
+      await prisma.category.create({
+        data: { name, userId: user.id },
+      });
+    }
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, tier: user.tier } });
   } catch (error) {
@@ -72,63 +79,20 @@ app.post('/auth/login', async (req, res) => {
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
+  // Check if user has categories, if not, create default ones
+  const existingCategories = await prisma.category.findMany({
+    where: { userId: user.id },
+  });
+  if (existingCategories.length === 0) {
+    const defaultCategories = ['Travel', 'Entertainment', 'Shopping', 'Utilities', 'Healthcare', 'Education', 'Groceries'];
+    for (const name of defaultCategories) {
+      await prisma.category.create({
+        data: { name, userId: user.id },
+      });
+    }
+  }
   const token = jwt.sign({ userId: user.id }, JWT_SECRET);
   res.json({ token, user: { id: user.id, email: user.email, name: user.name, tier: user.tier } });
-});
-
-// Get user tier
-app.get('/users/:id', async (req, res) => {
-  const { id } = req.params;
-  const user = await prisma.user.findUnique({ where: { id: Number(id) } });
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ tier: (user as any).tier });
-});
-
-// Get user subscriptions
-app.get('/subscriptions', async (req, res) => {
-  const { userId } = req.query;
-  try {
-    const subscriptions = await prisma.subscription.findMany({
-      where: { userId: Number(userId) },
-      include: { payments: true },
-      orderBy: { startDate: 'desc' },
-    });
-    res.json(subscriptions);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch subscriptions' });
-  }
-});
-
-// Get user payments
-app.get('/payments', async (req, res) => {
-  const { userId } = req.query;
-  try {
-    const payments = await prisma.payment.findMany({
-      where: { userId: Number(userId) },
-      include: { subscription: true },
-      orderBy: { timestamp: 'desc' },
-    });
-    res.json(payments);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch payments' });
-  }
-});
-
-// Cancel subscription (set status to CANCELLED)
-app.put('/subscriptions/:id/cancel', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const subscription = await prisma.subscription.update({
-      where: { id: Number(id) },
-      data: { status: 'CANCELLED' },
-    });
-    res.json(subscription);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to cancel subscription' });
-  }
 });
 
 // Auth middleware
@@ -145,6 +109,63 @@ const authMiddleware = async (req: any, res: any, next: any) => {
   }
 };
 
+// Get user tier
+app.get('/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const user = await prisma.user.findUnique({ where: { id: Number(id) } });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ tier: (user as any).tier });
+});
+
+app.get('/subscriptions', authMiddleware, async (req: any, res) => {
+  try {
+    const subscriptions = await prisma.subscription.findMany({
+      where: { userId: req.userId },
+      include: { payments: true },
+      orderBy: { startDate: 'desc' },
+    });
+    res.json(subscriptions);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch subscriptions' });
+  }
+});
+
+app.get('/payments', authMiddleware, async (req: any, res) => {
+  try {
+    const payments = await prisma.payment.findMany({
+      where: { userId: req.userId },
+      include: { subscription: true },
+      orderBy: { timestamp: 'desc' },
+    });
+    res.json(payments);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch payments' });
+  }
+});
+
+// Cancel subscription (set status to CANCELLED)
+app.put('/subscriptions/:id/cancel', authMiddleware, async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    const existingSubscription = await prisma.subscription.findFirst({
+      where: { id: Number(id), userId: req.userId },
+    });
+    if (!existingSubscription) {
+      return res.status(404).json({ error: 'Subscription not found' });
+    }
+    const subscription = await prisma.subscription.update({
+      where: { id: Number(id) },
+      data: { status: 'CANCELLED' },
+    });
+    res.json(subscription);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to cancel subscription' });
+  }
+});
+
 // Middleware to check user tier
 const checkTier = (requiredTier: string) => {
   return async (req: any, res: any, next: any) => {
@@ -160,26 +181,30 @@ const checkTier = (requiredTier: string) => {
   };
 };
 
-// Categories CRUD
-app.get('/categories', async (req, res) => {
-  const { userId } = req.query;
+app.get('/categories', authMiddleware, async (req: any, res) => {
   const categories = await prisma.category.findMany({
-    where: { userId: Number(userId) },
+    where: { userId: req.userId },
   });
   res.json(categories);
 });
 
-app.post('/categories', async (req, res) => {
-  const { name, userId } = req.body;
+app.post('/categories', authMiddleware, async (req: any, res) => {
+  const { name } = req.body;
   const category = await prisma.category.create({
-    data: { name, userId },
+    data: { name, userId: req.userId },
   });
   res.json(category);
 });
 
-app.put('/categories/:id', async (req, res) => {
+app.put('/categories/:id', authMiddleware, async (req: any, res) => {
   const { id } = req.params;
   const { name } = req.body;
+  const existingCategory = await prisma.category.findFirst({
+    where: { id: Number(id), userId: req.userId },
+  });
+  if (!existingCategory) {
+    return res.status(404).json({ error: 'Category not found' });
+  }
   const category = await prisma.category.update({
     where: { id: Number(id) },
     data: { name },
@@ -187,35 +212,45 @@ app.put('/categories/:id', async (req, res) => {
   res.json(category);
 });
 
-app.delete('/categories/:id', async (req, res) => {
+app.delete('/categories/:id', authMiddleware, async (req: any, res) => {
   const { id } = req.params;
+  const existingCategory = await prisma.category.findFirst({
+    where: { id: Number(id), userId: req.userId },
+  });
+  if (!existingCategory) {
+    return res.status(404).json({ error: 'Category not found' });
+  }
   await prisma.category.delete({
     where: { id: Number(id) },
   });
   res.json({ message: 'Category deleted' });
 });
 
-// Expenses CRUD
-app.get('/expenses', async (req, res) => {
-  const { userId } = req.query;
+app.get('/expenses', authMiddleware, async (req: any, res) => {
   const expenses = await prisma.expense.findMany({
-    where: { userId: Number(userId) },
+    where: { userId: req.userId },
     include: { category: true },
   });
   res.json(expenses);
 });
 
-app.post('/expenses', async (req, res) => {
-  const { amount, description, date, categoryId, userId } = req.body;
+app.post('/expenses', authMiddleware, async (req: any, res) => {
+  const { amount, description, date, categoryId } = req.body;
   const expense = await prisma.expense.create({
-    data: { amount, description, date: new Date(date), categoryId, userId },
+    data: { amount, description, date: new Date(date), categoryId, userId: req.userId },
   });
   res.json(expense);
 });
 
-app.put('/expenses/:id', async (req, res) => {
+app.put('/expenses/:id', authMiddleware, async (req: any, res) => {
   const { id } = req.params;
   const { amount, description, date, categoryId } = req.body;
+  const existingExpense = await prisma.expense.findFirst({
+    where: { id: Number(id), userId: req.userId },
+  });
+  if (!existingExpense) {
+    return res.status(404).json({ error: 'Expense not found' });
+  }
   const expense = await prisma.expense.update({
     where: { id: Number(id) },
     data: { amount, description, date: new Date(date), categoryId },
@@ -223,35 +258,45 @@ app.put('/expenses/:id', async (req, res) => {
   res.json(expense);
 });
 
-app.delete('/expenses/:id', async (req, res) => {
+app.delete('/expenses/:id', authMiddleware, async (req: any, res) => {
   const { id } = req.params;
+  const existingExpense = await prisma.expense.findFirst({
+    where: { id: Number(id), userId: req.userId },
+  });
+  if (!existingExpense) {
+    return res.status(404).json({ error: 'Expense not found' });
+  }
   await prisma.expense.delete({
     where: { id: Number(id) },
   });
   res.json({ message: 'Expense deleted' });
 });
 
-// Budgets CRUD
-app.get('/budgets', async (req, res) => {
-  const { userId } = req.query;
+app.get('/budgets', authMiddleware, async (req: any, res) => {
   const budgets = await prisma.budget.findMany({
-    where: { userId: Number(userId) },
+    where: { userId: req.userId },
     include: { category: true },
   });
   res.json(budgets);
 });
 
-app.post('/budgets', async (req, res) => {
-  const { name, amount, period, categoryId, userId } = req.body;
+app.post('/budgets', authMiddleware, async (req: any, res) => {
+  const { name, amount, period, categoryId } = req.body;
   const budget = await prisma.budget.create({
-    data: { name, amount, period, categoryId, userId },
+    data: { name, amount, period, categoryId, userId: req.userId },
   });
   res.json(budget);
 });
 
-app.put('/budgets/:id', async (req, res) => {
+app.put('/budgets/:id', authMiddleware, async (req: any, res) => {
   const { id } = req.params;
   const { name, amount, period, categoryId } = req.body;
+  const existingBudget = await prisma.budget.findFirst({
+    where: { id: Number(id), userId: req.userId },
+  });
+  if (!existingBudget) {
+    return res.status(404).json({ error: 'Budget not found' });
+  }
   const budget = await prisma.budget.update({
     where: { id: Number(id) },
     data: { name, amount, period, categoryId },
@@ -259,13 +304,19 @@ app.put('/budgets/:id', async (req, res) => {
   res.json(budget);
 });
 
-app.delete('/budgets/:id', async (req, res) => {
-   const { id } = req.params;
-   await prisma.budget.delete({
-     where: { id: Number(id) },
-   });
-   res.json({ message: 'Budget deleted' });
- });
+app.delete('/budgets/:id', authMiddleware, async (req: any, res) => {
+  const { id } = req.params;
+  const existingBudget = await prisma.budget.findFirst({
+    where: { id: Number(id), userId: req.userId },
+  });
+  if (!existingBudget) {
+    return res.status(404).json({ error: 'Budget not found' });
+  }
+  await prisma.budget.delete({
+    where: { id: Number(id) },
+  });
+  res.json({ message: 'Budget deleted' });
+});
 
 // AI Anomaly Detection
 app.post('/ai-anomaly', checkTier('PREMIUM'), async (req, res) => {
@@ -315,10 +366,10 @@ Format: [{"id": 1, "explanation": "High amount for category"}, ...]
 }
 
 // Monthly Reports
-app.get('/reports/monthly', async (req, res) => {
-  const { month, year, userId } = req.query;
-  if (!month || !year || !userId) {
-    return res.status(400).json({ error: 'month, year, and userId are required' });
+app.get('/reports/monthly', authMiddleware, async (req: any, res) => {
+  const { month, year } = req.query;
+  if (!month || !year) {
+    return res.status(400).json({ error: 'month and year are required' });
   }
 
   try {
@@ -327,7 +378,7 @@ app.get('/reports/monthly', async (req, res) => {
 
     const expenses = await prisma.expense.findMany({
       where: {
-        userId: Number(userId),
+        userId: req.userId,
         date: {
           gte: startDate,
           lt: endDate,
@@ -348,7 +399,7 @@ app.get('/reports/monthly', async (req, res) => {
 
     // Get budgets
     const budgets = await prisma.budget.findMany({
-      where: { userId: Number(userId), period: 'monthly' },
+      where: { userId: req.userId, period: 'monthly' },
       include: { category: true },
     });
 
@@ -544,12 +595,10 @@ app.get('/plaid/transactions', checkTier('PREMIUM'), async (req, res) => {
   }
 });
 
-// Get bank accounts
-app.get('/bank-accounts', async (req, res) => {
-  const { userId } = req.query;
+app.get('/bank-accounts', authMiddleware, async (req: any, res) => {
   try {
     const accounts = await prisma.bankAccount.findMany({
-      where: { userId: Number(userId) },
+      where: { userId: req.userId },
     });
     res.json(accounts);
   } catch (error) {

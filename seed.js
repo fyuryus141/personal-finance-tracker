@@ -15,16 +15,13 @@ async function main() {
   });
 
   const categories = [
-    { id: 1, name: 'Food' },
-    { id: 2, name: 'Transportation' },
-    { id: 3, name: 'Entertainment' },
+    { id: 1, name: 'Travel' },
+    { id: 2, name: 'Entertainment' },
+    { id: 3, name: 'Shopping' },
     { id: 4, name: 'Utilities' },
     { id: 5, name: 'Healthcare' },
-    { id: 6, name: 'Shopping' },
-    { id: 7, name: 'Education' },
-    { id: 8, name: 'Travel' },
-    { id: 9, name: 'Groceries' },
-    { id: 10, name: 'Dining Out' },
+    { id: 6, name: 'Education' },
+    { id: 7, name: 'Groceries' },
   ];
 
   for (const cat of categories) {
