@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "exclude": ["seed.js", "dist/**/*", "frontend/**/*"]
+  "exclude": ["seed.js", "dist/**/*", "frontend/**/*", "src/**/*"]
 }
