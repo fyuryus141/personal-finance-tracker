@@ -11,6 +11,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["backend/src/**/*"],
+  "include": ["backend/src/**/*.ts"],
   "exclude": ["seed.js", "dist/**/*", "frontend/**/*", "src/**/*"]
 }
