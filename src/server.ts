@@ -23,6 +23,7 @@ console.log('Creating Prisma client...');
 const prisma = new PrismaClient();
 console.log('Prisma client created');
 const upload = multer({ dest: 'uploads/' });
+const feedbackUpload = multer({ dest: 'uploads/feedback/' });
 let client: any = null;
 try {
   client = new vision.ImageAnnotatorClient();
@@ -92,7 +93,7 @@ app.post('/auth/login', async (req, res) => {
     }
   }
   const token = jwt.sign({ userId: user.id }, JWT_SECRET);
-  res.json({ token, user: { id: user.id, email: user.email, name: user.name, tier: user.tier } });
+  res.json({ token, user: { id: user.id, email: user.email, name: user.name, tier: user.tier, emailReports: user.emailReports } });
 });
 
 // Auth middleware
@@ -115,6 +116,102 @@ app.get('/users/:id', async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: Number(id) } });
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({ tier: (user as any).tier });
+});
+
+// PUT /users/:id/profile-picture
+app.put('/users/:id/profile-picture', authMiddleware, upload.single('profilePicture'), async (req: any, res) => {
+  const { id } = req.params;
+  if (Number(id) !== req.userId) return res.status(403).json({ error: 'Unauthorized' });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const profilePicture = req.file.path;
+  await prisma.user.update({
+    where: { id: Number(id) },
+    data: { profilePicture }
+  });
+  res.json({ message: 'Profile picture updated' });
+});
+
+// PUT /users/:id/password
+app.put('/users/:id/password', authMiddleware, async (req: any, res) => {
+  const { id } = req.params;
+  const { currentPassword, newPassword } = req.body;
+  if (Number(id) !== req.userId) return res.status(403).json({ error: 'Unauthorized' });
+  const user = await prisma.user.findUnique({ where: { id: Number(id) } });
+  if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+    return res.status(401).json({ error: 'Current password incorrect' });
+  }
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id: Number(id) },
+    data: { password: hashedPassword }
+  });
+  res.json({ message: 'Password updated' });
+});
+
+// PUT /users/:id/notifications - updated
+app.put('/users/:id/notifications', authMiddleware, async (req: any, res) => {
+  const { id } = req.params;
+  const { emailReports } = req.body;
+  console.log('PUT /users/:id/notifications called for id:', id, 'userId:', req.userId, 'emailReports:', emailReports);
+  if (Number(id) !== req.userId) {
+    console.log('Unauthorized: id does not match userId');
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  try {
+    await prisma.user.update({
+      where: { id: Number(id) },
+      data: { emailReports }
+    });
+    console.log('Notifications updated successfully for user:', id);
+    res.json({ message: 'Notifications updated' });
+  } catch (error) {
+    console.log('Error updating notifications:', error);
+    res.status(500).json({ error: 'Failed to update notifications' });
+  }
+});
+
+// GET /users/:id/export
+app.get('/users/:id/export', authMiddleware, async (req: any, res) => {
+  const { id } = req.params;
+  if (Number(id) !== req.userId) return res.status(403).json({ error: 'Unauthorized' });
+  const user = await prisma.user.findUnique({
+    where: { id: Number(id) },
+    include: {
+      expenses: { include: { category: true } },
+      categories: true,
+      budgets: { include: { category: true } },
+      bankAccounts: { include: { transactions: true } },
+      feedbacks: true,
+      subscriptions: { include: { payments: true } },
+      payments: true,
+    }
+  });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json(user);
+});
+
+// PUT /users/:id
+app.put('/users/:id', authMiddleware, async (req: any, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+  if (Number(id) !== req.userId) return res.status(403).json({ error: 'Unauthorized' });
+  try {
+    const user = await prisma.user.update({
+      where: { id: Number(id) },
+      data: { name },
+    });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// DELETE /users/:id
+app.delete('/users/:id', authMiddleware, async (req: any, res) => {
+  const { id } = req.params;
+  if (Number(id) !== req.userId) return res.status(403).json({ error: 'Unauthorized' });
+  await prisma.user.delete({ where: { id: Number(id) } });
+  res.json({ message: 'Account deleted' });
 });
 
 app.get('/subscriptions', authMiddleware, async (req: any, res) => {
@@ -608,15 +705,37 @@ app.get('/bank-accounts', authMiddleware, async (req: any, res) => {
 });
 
 // Feedback route
-app.post('/feedback', authMiddleware, async (req: any, res) => {
-  const { message, type } = req.body;
+app.post('/feedback', authMiddleware, feedbackUpload.array('attachments', 3), async (req: any, res) => {
+  const { subject, message, type, rating, category } = req.body;
+  const attachments = req.files ? req.files.map((f: any) => f.path) : [];
   try {
     const feedback = await prisma.feedback.create({
-      data: { userId: req.userId, message, type },
+      data: {
+        userId: req.userId,
+        subject,
+        message,
+        type,
+        rating: rating ? parseInt(rating) : null,
+        category,
+        attachments: JSON.stringify(attachments)
+      },
     });
     res.json(feedback);
   } catch (error) {
     res.status(500).json({ error: 'Failed to submit feedback' });
+  }
+});
+
+// Get feedback history
+app.get('/feedback', authMiddleware, async (req: any, res) => {
+  try {
+    const feedbacks = await prisma.feedback.findMany({
+      where: { userId: req.userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(feedbacks);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch feedback' });
   }
 });
 

@@ -5,12 +5,12 @@
     "lib": ["es6"],
     "allowJs": true,
     "outDir": "./dist",
-    "rootDir": "./backend/src",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["backend/**/*.ts"],
-  "exclude": ["seed.js", "dist/**/*", "frontend/**/*", "src/**/*"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["seed.js", "dist/**/*", "frontend/**/*", "backend/**/*"]
 }
