@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, User } from 'lucide-react';
 import './Login.css';
 
@@ -11,6 +11,24 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isRegister, setIsRegister] = useState(false);
+  const [backgroundImageIndex, setBackgroundImageIndex] = useState(0);
+
+  const backgroundImages = [
+    '/20606.jpg',
+    '/43398.jpg',
+    '/elevated-view-coffee-cup-business-budget-plan-eyeglasses-blue-backdrop.jpg',
+    '/flat-lay-work-desk-with-agenda-notebook.jpg',
+    '/high-view-piggy-bank-notepads.jpg',
+    '/OQECWT0.jpg'
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBackgroundImageIndex((prevIndex) => (prevIndex + 1) % backgroundImages.length);
+    }, 15000); // Change image every 15 seconds
+
+    return () => clearInterval(interval);
+  }, [backgroundImages.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +62,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="login-container">
+    <div
+      className="login-container"
+      style={{
+        backgroundImage: `url(${backgroundImages[backgroundImageIndex]})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
       <div className="login-card">
         <div className="login-header">
           <h2 className="login-title">
