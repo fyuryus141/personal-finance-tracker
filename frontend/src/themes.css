@@ -1,0 +1,29 @@
+/* Light theme (default) */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --accent: #007bff;
+  --accent-hover: #0056b3;
+  --border: #dee2e6;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --error: #dc3545;
+  --success: #28a745;
+  --warning: #ffc107;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --bg-primary: #121212;
+  --bg-secondary: #1e1e1e;
+  --text-primary: #ffffff;
+  --text-secondary: #adb5bd;
+  --accent: #4dabf7;
+  --accent-hover: #2196f3;
+  --border: #343a40;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --error: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
+}

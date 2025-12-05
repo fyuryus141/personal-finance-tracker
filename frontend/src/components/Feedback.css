@@ -1,0 +1,247 @@
+@import './Login.css';
+
+/* Feedback specific styles */
+
+.feedback-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.feedback-title {
+  color: var(--text-primary);
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.feedback-subtitle {
+  color: var(--text-secondary);
+  font-size: 16px;
+  margin: 0;
+}
+
+.feedback-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.feedback-card-title {
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.feedback-rating {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.feedback-rating-label {
+  margin-right: 16px;
+  color: var(--text-primary);
+}
+
+.feedback-category {
+  margin-bottom: 16px;
+}
+
+.feedback-category-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.feedback-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feedback-chip {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.feedback-chip.selected {
+  background: var(--accent);
+  color: white;
+}
+
+.feedback-file-input {
+  margin-bottom: 16px;
+}
+
+.feedback-file-button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.feedback-file-button:hover {
+  background: var(--accent-hover);
+}
+
+.feedback-attachments {
+  margin-top: 8px;
+}
+
+.feedback-attachment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-secondary);
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.feedback-attachment-text {
+  color: var(--text-primary);
+}
+
+.feedback-delete-button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.feedback-anonymous {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.feedback-anonymous input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.feedback-submit-button {
+  width: 100%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.feedback-submit-button:hover {
+  background: var(--accent-hover);
+}
+
+.feedback-submit-button:disabled {
+  background: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.feedback-progress {
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.feedback-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.feedback-accordion {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.feedback-accordion-header {
+  background: var(--bg-secondary);
+  padding: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.feedback-accordion-header:hover {
+  background: var(--bg-primary);
+}
+
+.feedback-accordion-content {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.feedback-rating-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.feedback-category-chip {
+  background: var(--accent);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.feedback-alert {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 12px var(--shadow);
+  z-index: 1000;
+  max-width: 300px;
+}
+
+.feedback-alert.success {
+  border-color: #4caf50;
+}
+
+.feedback-alert.error {
+  border-color: #f44336;
+}
+
+.feedback-alert-text {
+  color: var(--text-primary);
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .feedback-chips {
+    justify-content: center;
+  }
+
+  .feedback-card {
+    padding: 16px;
+  }
+}
