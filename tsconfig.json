@@ -5,7 +5,6 @@
     "lib": ["es6"],
     "allowJs": true,
     "outDir": "./dist",
-    "rootDir": "./backend/src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
