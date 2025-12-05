@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+  password String @default("")
+  tier  String  @default("FREE")
+  expenses Expense[]
+  categories Category[]
+  budgets Budget[]
+  bankAccounts BankAccount[]
+  feedbacks Feedback[]
+  subscriptions Subscription[]
+  payments Payment[]
+  // Add more fields as needed
+}
+
+model Category {
+  id     Int     @id @default(autoincrement())
+  name   String
+  userId Int
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+  budgets Budget[]
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  amount      Float
+  description String
+  date        DateTime
+  categoryId  Int
+  userId      Int
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Budget {
+  id         Int     @id @default(autoincrement())
+  name       String
+  amount     Float
+  period     String  // e.g., "monthly"
+  categoryId Int
+  userId     Int
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BankAccount {
+  id             Int         @id @default(autoincrement())
+  userId         Int
+  plaidAccountId String      @unique
+  name           String
+  type           String      // e.g., "checking", "savings"
+  balance        Float
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+}
+
+model Transaction {
+  id                Int         @id @default(autoincrement())
+  bankAccountId     Int
+  plaidTransactionId String     @unique
+  amount            Float
+  description       String
+  date              DateTime
+  category          String?
+  bankAccount       BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+}
+
+model Feedback {
+  id      Int    @id @default(autoincrement())
+  userId  Int
+  message String
+  type    String // 'feedback' or 'bug'
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tier      String   // "PREMIUM" or "BUSINESS"
+  amount    Float
+  status    String   @default("ACTIVE") // ACTIVE, CANCELLED, EXPIRED
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  kofiId    String?  // Ko-fi transaction ID
+  user      User     @relation(fields: [userId], references: [id])
+  payments  Payment[]
+}
+
+model Payment {
+  id             Int          @id @default(autoincrement())
+  userId         Int
+  amount         Float
+  currency       String       @default("USD")
+  status         String       // SUCCESS, FAILED, PENDING
+  kofiId         String       @unique
+  timestamp      DateTime     @default(now())
+  subscriptionId Int?
+  user           User         @relation(fields: [userId], references: [id])
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+}
