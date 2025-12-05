@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -16,6 +16,8 @@ model User {
   name  String?
   password String @default("")
   tier  String  @default("FREE")
+  profilePicture String?
+  emailReports Boolean @default(true)
   expenses Expense[]
   categories Category[]
   budgets Budget[]
@@ -80,11 +82,16 @@ model Transaction {
 }
 
 model Feedback {
-  id      Int    @id @default(autoincrement())
-  userId  Int
-  message String
-  type    String // 'feedback' or 'bug'
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  subject    String?
+  message    String
+  type       String   // 'feedback', 'bug', 'feature', 'ui', 'performance', 'other'
+  rating     Int?     // 1-5 stars
+  category   String?  // same as type
+  attachments String? // JSON array of file paths
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Subscription {
