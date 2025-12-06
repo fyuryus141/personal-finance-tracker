@@ -421,7 +421,7 @@ app.delete('/budgets/:id', authMiddleware, async (req: any, res) => {
 });
 
 // AI Anomaly Detection
-app.post('/ai-anomaly', checkTier('PREMIUM'), async (req, res) => {
+app.post('/ai-anomaly', authMiddleware, checkTier('PREMIUM'), async (req, res) => {
   const { expenses } = req.body;
   try {
     const anomalies = await detectAnomalies(expenses);
