@@ -19,7 +19,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
 
   const fetchSubscriptions = async () => {
     try {
-      const response = await fetch(`http://localhost:3001/subscriptions?userId=${user.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/subscriptions?userId=${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -33,7 +33,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch(`http://localhost:3001/payments?userId=${user.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/payments?userId=${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -186,7 +186,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
 
   const cancelSubscription = async (id: number) => {
     try {
-      await fetch(`http://localhost:3001/subscriptions/${id}/cancel`, {
+      await fetch(`${process.env.REACT_APP_API_BASE}/subscriptions/${id}/cancel`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

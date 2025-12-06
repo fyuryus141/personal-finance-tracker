@@ -40,11 +40,13 @@ const Feedback: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [envError, setEnvError] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
 
   const { control, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm({
     resolver: yupResolver(feedbackSchema),
     defaultValues: {
-      rating: 0,
+      rating: 1,
       category: '',
       subject: '',
       message: '',
@@ -53,6 +55,9 @@ const Feedback: React.FC = () => {
 
   useEffect(() => {
     fetchFeedbackHistory();
+    if (!process.env.REACT_APP_API_BASE) {
+      setEnvError(true);
+    }
   }, []);
 
   const fetchFeedbackHistory = async () => {
@@ -61,7 +66,7 @@ const Feedback: React.FC = () => {
     console.log('Fetching feedback history');
 
     try {
-      const response = await fetch('http://localhost:3001/feedback', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/feedback`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -94,13 +99,14 @@ const Feedback: React.FC = () => {
     formData.append('type', data.category);
     formData.append('rating', data.rating.toString());
     formData.append('category', data.category);
+    formData.append('anonymous', anonymous.toString());
 
     attachments.forEach((file, index) => {
       formData.append('attachments', file);
     });
 
     try {
-      const response = await fetch('http://localhost:3001/feedback', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/feedback`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -111,12 +117,19 @@ const Feedback: React.FC = () => {
       if (response.ok) {
         setMessage({ type: 'success', text: 'Feedback submitted successfully!' });
         reset();
-        setRating(0);
+        setRating(1);
         setSelectedCategory('');
         setAttachments([]);
         fetchFeedbackHistory();
       } else {
-        setMessage({ type: 'error', text: 'Error submitting feedback' });
+        let errorText = 'Error submitting feedback';
+        try {
+          const errorData = await response.json();
+          errorText = errorData.message || `Error: ${response.status} ${response.statusText}`;
+        } catch {
+          errorText = `Error: ${response.status} ${response.statusText}`;
+        }
+        setMessage({ type: 'error', text: errorText });
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Error submitting feedback' });
@@ -161,6 +174,12 @@ const Feedback: React.FC = () => {
           <p className="feedback-subtitle">Help us improve by sharing your thoughts and experiences.</p>
         </div>
 
+        {envError && (
+          <div className="feedback-alert error">
+            <p>API base URL is not configured. Please check your environment variables.</p>
+          </div>
+        )}
+
         <div className="feedback-card">
           <h3 className="feedback-card-title">Submit Feedback</h3>
           <form className="login-form" onSubmit={handleSubmit(onSubmit)}>
@@ -175,7 +194,7 @@ const Feedback: React.FC = () => {
                     type="number"
                     min="1"
                     max="5"
-                    value={field.value || 0}
+                    value={field.value || 1}
                     onChange={(e) => {
                       field.onChange(parseInt(e.target.value));
                       setRating(parseInt(e.target.value));
@@ -289,29 +308,46 @@ const Feedback: React.FC = () => {
           ) : feedbackHistory.length === 0 ? (
             <p style={{ color: 'var(--text-secondary)' }}>No previous feedback found.</p>
           ) : (
-            feedbackHistory.map((item) => (
-              <div key={item.id} className="feedback-accordion">
-                <div className="feedback-accordion-header">
-                  <div className="feedback-rating-display">
-                    <span>Rating: {item.rating || 0}</span>
-                    <span>{item.subject || 'No subject'} - {new Date(item.createdAt).toLocaleDateString()}</span>
-                    <span className="feedback-category-chip">{item.category || item.type}</span>
-                  </div>
-                  <button type="button" style={{ background: 'none', border: 'none', fontSize: '18px' }}>▼</button>
-                </div>
-                <div className="feedback-accordion-content">
-                  <p>{item.message}</p>
-                  {item.attachments && JSON.parse(item.attachments).length > 0 && (
-                    <div>
-                      <strong>Attachments:</strong>
-                      {JSON.parse(item.attachments).map((path: string, index: number) => (
-                        <p key={index}>{path.split('/').pop()}</p>
-                      ))}
+            feedbackHistory.map((item) => {
+              const isExpanded = expandedItems.has(item.id);
+              return (
+                <div key={item.id} className="feedback-accordion">
+                  <div className="feedback-accordion-header">
+                    <div className="feedback-rating-display">
+                      <span>Rating: {item.rating || 1}</span>
+                      <span>{item.subject || 'No subject'} - {new Date(item.createdAt).toLocaleDateString()}</span>
+                      <span className="feedback-category-chip">{item.category || item.type}</span>
                     </div>
-                  )}
+                    <button
+                      type="button"
+                      style={{ background: 'none', border: 'none', fontSize: '18px' }}
+                      onClick={() => {
+                        const newSet = new Set(expandedItems);
+                        if (isExpanded) {
+                          newSet.delete(item.id);
+                        } else {
+                          newSet.add(item.id);
+                        }
+                        setExpandedItems(newSet);
+                      }}
+                    >
+                      {isExpanded ? '▲' : '▼'}
+                    </button>
+                  </div>
+                  <div className={`feedback-accordion-content ${isExpanded ? 'expanded' : ''}`}>
+                    <p>{item.message}</p>
+                    {item.attachments && JSON.parse(item.attachments).length > 0 && (
+                      <div>
+                        <strong>Attachments:</strong>
+                        {JSON.parse(item.attachments).map((path: string, index: number) => (
+                          <p key={index}>{path.split('/').pop()}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 

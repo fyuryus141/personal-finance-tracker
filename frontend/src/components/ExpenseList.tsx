@@ -33,7 +33,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ user, token }) => {
 
   const fetchExpenses = async () => {
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/expenses?userId=${user.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/expenses?userId=${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -52,10 +52,11 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ user, token }) => {
 
   const fetchAnomalies = async (expenseData: Expense[]) => {
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/ai-anomaly`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/ai-anomaly`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ expenses: expenseData }),
       });

@@ -39,7 +39,7 @@ const SpendingCharts: React.FC<SpendingChartsProps> = ({ user, token }) => {
 
   const fetchExpenses = async () => {
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/expenses?userId=${user.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/expenses?userId=${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -53,7 +53,7 @@ const SpendingCharts: React.FC<SpendingChartsProps> = ({ user, token }) => {
 
   const fetchBudgets = async () => {
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/budgets?userId=${user.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/budgets?userId=${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

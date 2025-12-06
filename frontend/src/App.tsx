@@ -31,9 +31,15 @@ function App() {
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
+    console.log('Checking authentication status:');
+    console.log('Token present:', !!storedToken);
+    console.log('User present:', !!storedUser);
     if (storedToken && storedUser) {
+      console.log('User is logged in:', JSON.parse(storedUser).name);
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
+    } else {
+      console.log('User is not logged in');
     }
   }, []);
 
@@ -65,50 +71,64 @@ function App() {
   };
 
   const renderView = () => {
+    console.log('renderView called, user:', !!user, 'currentView:', currentView);
     if (!user) {
+      console.log('Rendering login');
       return <Login onLogin={handleLogin} />;
     }
 
+    console.log('Rendering authenticated view:', currentView);
     switch (currentView) {
       case 'dashboard':
-        return (
-          <div className="main-content">
-            <div className="component-card"><BankLink /></div>
-            <div className="component-card"><BankAccounts user={user} token={token} onTransactionsImported={handleExpenseAdded} /></div>
-            <div className="component-card"><SetBudgetForm onBudgetAdded={handleBudgetAdded} user={user} token={token} /></div>
-            <div className="component-card"><BudgetList key={budgetRefreshKey} user={user} token={token} /></div>
-            <div className="component-card"><ReceiptScanner
-              setAmount={setAmount}
-              setDescription={setDescription}
-              setDate={setDate}
-            /></div>
-            <div className="component-card"><AddExpenseForm
-              onExpenseAdded={handleExpenseAdded}
-              amount={amount}
-              setAmount={setAmount}
-              description={description}
-              setDescription={setDescription}
-              date={date}
-              setDate={setDate}
-              categoryId={categoryId}
-              setCategoryId={setCategoryId}
-              user={user}
-              token={token}
-            /></div>
-            <div className="component-card"><ExpenseList key={refreshKey} user={user} token={token} /></div>
-            <div className="component-card"><AIInsights user={user} token={token} /></div>
-            <div className="component-card"><SpendingCharts user={user} token={token} /></div>
-          </div>
-        );
+        console.log('Rendering dashboard components');
+        try {
+          return (
+            <div className="main-content">
+              <div className="component-card"><BankLink /></div>
+              <div className="component-card"><BankAccounts user={user} token={token} onTransactionsImported={handleExpenseAdded} /></div>
+              <div className="component-card"><SetBudgetForm onBudgetAdded={handleBudgetAdded} user={user} token={token} /></div>
+              <div className="component-card"><BudgetList key={budgetRefreshKey} user={user} token={token} /></div>
+              <div className="component-card"><ReceiptScanner
+                setAmount={setAmount}
+                setDescription={setDescription}
+                setDate={setDate}
+              /></div>
+              <div className="component-card"><AddExpenseForm
+                onExpenseAdded={handleExpenseAdded}
+                amount={amount}
+                setAmount={setAmount}
+                description={description}
+                setDescription={setDescription}
+                date={date}
+                setDate={setDate}
+                categoryId={categoryId}
+                setCategoryId={setCategoryId}
+                user={user}
+                token={token}
+              /></div>
+              <div className="component-card"><ExpenseList key={refreshKey} user={user} token={token} /></div>
+              <div className="component-card"><AIInsights user={user} token={token} /></div>
+              <div className="component-card"><SpendingCharts user={user} token={token} /></div>
+            </div>
+          );
+        } catch (error) {
+          console.error('Error rendering dashboard:', error);
+          return <div>Error loading dashboard</div>;
+        }
       case 'reports':
+        console.log('Rendering reports');
         return <MonthlyReport user={user} token={token} />;
       case 'plans':
+        console.log('Rendering plans');
         return <Subscription user={user} token={token} />;
       case 'settings':
+        console.log('Rendering settings');
         return <Settings user={user} token={token} onUserUpdate={setUser} />;
       case 'feedback':
+        console.log('Rendering feedback');
         return <Feedback />;
       default:
+        console.log('Unknown view:', currentView);
         return null;
     }
   };

@@ -34,7 +34,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     e.preventDefault();
     const endpoint = isRegister ? '/auth/register' : '/auth/login';
     const body = isRegister ? { email, password, name } : { email, password };
-    const url = `https://financial-tracker-ai-insight-a194fc716874.herokuapp.com${endpoint}`;
+    const url = `${process.env.REACT_APP_API_BASE}${endpoint}`;
     console.log('Attempting login/register fetch to:', url);
 
     try {
