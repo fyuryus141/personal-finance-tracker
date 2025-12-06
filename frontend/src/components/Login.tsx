@@ -49,7 +49,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       if (response.ok) {
         const data = await response.json();
         console.log('Success data:', data);
-        onLogin(data.token, data.user);
+        if (isRegister) {
+          alert('Registration successful. Check your email to verify.');
+          setIsRegister(false);
+        } else {
+          onLogin(data.token, data.user);
+        }
       } else {
         const errorData = await response.json();
         console.log('Error data:', errorData);

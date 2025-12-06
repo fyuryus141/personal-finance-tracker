@@ -15,6 +15,7 @@ import Login from './components/Login';
 import Feedback from './components/Feedback';
 import DarkModeToggle from './components/DarkModeToggle';
 import Settings from './components/Settings';
+import EmailVerification from './components/EmailVerification';
 import './App.css';
 
 function App() {
@@ -72,6 +73,11 @@ function App() {
 
   const renderView = () => {
     console.log('renderView called, user:', !!user, 'currentView:', currentView);
+    // Check for email verification token
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('token')) {
+      return <EmailVerification />;
+    }
     if (!user) {
       console.log('Rendering login');
       return <Login onLogin={handleLogin} />;

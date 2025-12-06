@@ -18,6 +18,8 @@ model User {
   tier  String  @default("FREE")
   profilePicture String?
   emailReports Boolean @default(true)
+  emailVerified Boolean @default(false)
+  verificationToken String?
   expenses Expense[]
   categories Category[]
   budgets Budget[]
