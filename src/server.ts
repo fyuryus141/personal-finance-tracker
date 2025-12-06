@@ -52,6 +52,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoint for Dead Man's Snitch
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // Auth routes
 app.post('/auth/register', async (req, res) => {
   const { email, password, name } = req.body;
