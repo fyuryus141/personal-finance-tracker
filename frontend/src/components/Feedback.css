@@ -236,6 +236,25 @@
   margin: 0;
 }
 
+.feedback-priority-indicator {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  color: #333;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.feedback-priority-badge {
+  background: #ffd700;
+  color: #333;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 @media (max-width: 600px) {
   .feedback-chips {
     justify-content: center;

@@ -12,27 +12,33 @@ interface AddExpenseFormProps {
   setDate: (value: string) => void;
   categoryId: string;
   setCategoryId: (value: string) => void;
+  tags: string[];
+  setTags: (value: string[]) => void;
   user: any;
   token: string | null;
 }
 
-const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ onExpenseAdded, amount, setAmount, description, setDescription, date, setDate, categoryId, setCategoryId, user, token }) => {
+const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ onExpenseAdded, amount, setAmount, description, setDescription, date, setDate, categoryId, setCategoryId, tags, setTags, user, token }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const body: any = {
+      amount: parseFloat(amount),
+      description,
+      date,
+      categoryId: parseInt(categoryId),
+      userId: user.id,
+    };
+    if (user.tier === 'BUSINESS') {
+      body.tags = tags;
+    }
     await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/expenses`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        amount: parseFloat(amount),
-        description,
-        date,
-        categoryId: parseInt(categoryId),
-        userId: user.id,
-      }),
+      body: JSON.stringify(body),
     });
     onExpenseAdded();
   };
@@ -79,6 +85,18 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ onExpenseAdded, amount,
           <label style={{ color: 'var(--text-primary)' }}>Category:</label>
           <CategorySelector value={categoryId} onChange={setCategoryId} user={user} token={token} />
         </div>
+        {user.tier === 'BUSINESS' && (
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ color: 'var(--text-primary)' }}>Tags (comma separated):</label>
+            <input
+              type="text"
+              value={tags.join(', ')}
+              onChange={(e) => setTags(e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}
+              style={{ width: '100%', padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-primary)', backgroundColor: 'var(--bg-primary)', transition: 'border-color 0.3s ease, color 0.3s ease, background-color 0.3s ease' }}
+              placeholder="e.g., work, travel, food"
+            />
+          </div>
+        )}
         <button type="submit" style={{ backgroundColor: 'var(--accent)', color: 'var(--bg-primary)', padding: '8px 16px', border: 'none', borderRadius: '4px', transition: 'background-color 0.3s ease, color 0.3s ease' }}>
           Add Expense
         </button>

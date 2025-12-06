@@ -12,6 +12,7 @@ interface FeedbackItem {
   rating?: number;
   category?: string;
   attachments?: string;
+  priority?: boolean;
   createdAt: string;
 }
 
@@ -42,6 +43,7 @@ const Feedback: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [envError, setEnvError] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+  const [user, setUser] = useState<any>(null);
 
   const { control, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm({
     resolver: yupResolver(feedbackSchema),
@@ -54,6 +56,10 @@ const Feedback: React.FC = () => {
   });
 
   useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
     fetchFeedbackHistory();
     if (!process.env.REACT_APP_API_BASE) {
       setEnvError(true);
@@ -182,6 +188,11 @@ const Feedback: React.FC = () => {
 
         <div className="feedback-card">
           <h3 className="feedback-card-title">Submit Feedback</h3>
+          {user && user.tier === 'BUSINESS' && (
+            <div className="feedback-priority-indicator">
+              <span>⭐ Priority Support Enabled</span>
+            </div>
+          )}
           <form className="login-form" onSubmit={handleSubmit(onSubmit)}>
             <div className="feedback-rating">
               <label className="feedback-rating-label">Rate your experience</label>
@@ -317,6 +328,7 @@ const Feedback: React.FC = () => {
                       <span>Rating: {item.rating || 1}</span>
                       <span>{item.subject || 'No subject'} - {new Date(item.createdAt).toLocaleDateString()}</span>
                       <span className="feedback-category-chip">{item.category || item.type}</span>
+                      {item.priority && <span className="feedback-priority-badge">Priority</span>}
                     </div>
                     <button
                       type="button"

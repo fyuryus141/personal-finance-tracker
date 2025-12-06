@@ -29,104 +29,80 @@ interface CategoryData {
   status: string;
 }
 
-interface MonthlyReportProps {
+interface MonthlyData {
+  month: number;
+  spending: number;
+}
+
+interface Forecast {
+  predictedTotalSpending: number;
+  predictedMonthlySpending: number[];
+  forecastExplanation: string;
+  risks: string;
+}
+
+interface YearlyReportData {
+  year: number;
+  totalSpent: number;
+  prevYearTotal: number;
+  yearOverYearChange: number;
+  categoryData: CategoryData[];
+  monthlyData: MonthlyData[];
+  forecast: Forecast;
+}
+
+interface YearlyReportProps {
   user: any;
   token: string | null;
 }
 
-const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, token }) => {
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
+const YearlyReport: React.FC<YearlyReportProps> = ({ user, token }) => {
   const [year, setYear] = useState(new Date().getFullYear());
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [reportData, setReportData] = useState<YearlyReportData | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchExpenses();
-      fetchBudgets();
+    if (user && user.tier !== 'FREE') {
+      fetchYearlyReport();
     }
-  }, [month, year, user]);
+  }, [year, user]);
 
-  const fetchExpenses = async () => {
+  const fetchYearlyReport = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/expenses?userId=${user.id}`, {
+      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/reports/yearly?year=${year}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
       const data = await response.json();
-      setExpenses(data);
+      setReportData(data);
     } catch (error) {
-      console.error('Error fetching expenses:', error);
+      console.error('Error fetching yearly report:', error);
+    } finally {
+      setLoading(false);
     }
   };
-
-  const fetchBudgets = async () => {
-    try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/budgets?userId=${user.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      setBudgets(data);
-    } catch (error) {
-      console.error('Error fetching budgets:', error);
-    }
-  };
-
-  const monthExpenses = expenses.filter(exp => {
-    const d = new Date(exp.date);
-    return d.getMonth() + 1 === month && d.getFullYear() === year;
-  });
-
-  const totalSpent = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-
-  const categoryData: CategoryData[] = budgets.map(budget => {
-    const actual = monthExpenses
-      .filter(exp => exp.categoryId === budget.categoryId)
-      .reduce((sum, exp) => sum + exp.amount, 0);
-    return {
-      category: budget.category.name,
-      spent: actual,
-      budget: budget.amount,
-      status: actual > budget.amount ? 'over' : 'under',
-    };
-  });
-
-  const pieData = categoryData.map(cat => ({ name: cat.category, value: cat.spent }));
-  const barData = categoryData.map(cat => ({
-    category: cat.category,
-    budgeted: cat.budget,
-    actual: cat.spent,
-  }));
-
-  const lineData = monthExpenses.reduce((acc, expense) => {
-    const day = new Date(expense.date).getDate();
-    const existing = acc.find(item => item.day === day);
-    if (existing) {
-      existing.spending += expense.amount;
-    } else {
-      acc.push({ day, spending: expense.amount });
-    }
-    return acc;
-  }, [] as { day: number; spending: number }[]).sort((a, b) => a.day - b.day);
 
   const exportToPDF = () => {
+    if (!reportData) return;
     const doc = new jsPDF();
-    doc.text(`Monthly Report - ${month}/${year}`, 10, 10);
-    doc.text(`Total Spent: $${totalSpent.toFixed(2)}`, 10, 20);
-    let y = 30;
-    categoryData.forEach(cat => {
+    doc.text(`Yearly Report - ${year}`, 10, 10);
+    doc.text(`Total Spent: $${reportData.totalSpent.toFixed(2)}`, 10, 20);
+    doc.text(`Previous Year: $${reportData.prevYearTotal.toFixed(2)}`, 10, 30);
+    doc.text(`Year-over-Year Change: ${reportData.yearOverYearChange.toFixed(2)}%`, 10, 40);
+    doc.text(`Predicted Next Year: $${reportData.forecast.predictedTotalSpending.toFixed(2)}`, 10, 50);
+    let y = 60;
+    reportData.categoryData.forEach(cat => {
       doc.text(`${cat.category}: $${cat.spent.toFixed(2)} / $${cat.budget.toFixed(2)} (${cat.status})`, 10, y);
       y += 10;
     });
-    doc.save(`report-${month}-${year}.pdf`);
+    doc.save(`yearly-report-${year}.pdf`);
   };
 
   const exportToCSV = async () => {
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/reports/monthly/csv?month=${month}&year=${year}`, {
+      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/reports/yearly/csv?year=${year}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -138,7 +114,7 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, token }) => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `monthly-report-${month}-${year}.csv`);
+      link.setAttribute('download', `yearly-report-${year}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -151,32 +127,70 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, token }) => {
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
+  if (user.tier === 'FREE') {
+    return (
+      <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', margin: '16px' }}>
+        <h2 style={{ color: 'var(--accent)' }}>Yearly Report</h2>
+        <p>This feature is available for Premium and Business tier users only.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', margin: '16px' }}>
+        <h2 style={{ color: 'var(--accent)' }}>Yearly Report</h2>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!reportData) {
+    return (
+      <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', margin: '16px' }}>
+        <h2 style={{ color: 'var(--accent)' }}>Yearly Report</h2>
+        <p>No data available.</p>
+      </div>
+    );
+  }
+
+  const pieData = reportData.categoryData.map(cat => ({ name: cat.category, value: cat.spent }));
+  const barData = [
+    { year: `${year - 1}`, spending: reportData.prevYearTotal },
+    { year: `${year}`, spending: reportData.totalSpent },
+    { year: `${year + 1} (Predicted)`, spending: reportData.forecast.predictedTotalSpending },
+  ];
+
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', margin: '16px' }}>
-      <h2 style={{ color: 'var(--accent)' }}>Monthly Report</h2>
+      <h2 style={{ color: 'var(--accent)' }}>Yearly Report</h2>
       <div style={{ marginBottom: '16px' }}>
-        <label>Month: </label>
-        <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-          {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
-        <label> Year: </label>
+        <label>Year: </label>
         <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} />
       </div>
       <div style={{ marginBottom: '16px' }}>
         <h3>Summary</h3>
-        <p>Total Spent: <span style={{ color: 'var(--error)' }}>${totalSpent.toFixed(2)}</span></p>
+        <p>Total Spent: <span style={{ color: 'var(--error)' }}>${reportData.totalSpent.toFixed(2)}</span></p>
+        <p>Previous Year: <span style={{ color: 'var(--text-primary)' }}>${reportData.prevYearTotal.toFixed(2)}</span></p>
+        <p>Year-over-Year Change: <span style={{ color: reportData.yearOverYearChange > 0 ? 'var(--error)' : 'var(--success)' }}>
+          {reportData.yearOverYearChange > 0 ? '+' : ''}{reportData.yearOverYearChange.toFixed(2)}%
+        </span></p>
+        <p>Predicted Next Year: <span style={{ color: 'var(--accent)' }}>${reportData.forecast.predictedTotalSpending.toFixed(2)}</span></p>
       </div>
       <div style={{ marginBottom: '16px' }}>
         <h3>Category Breakdown</h3>
         <ul>
-          {categoryData.map(cat => (
+          {reportData.categoryData.map(cat => (
             <li key={cat.category} style={{ color: cat.status === 'over' ? 'var(--error)' : 'var(--success)' }}>
               {cat.category}: ${cat.spent.toFixed(2)} / ${cat.budget.toFixed(2)} ({cat.status})
             </li>
           ))}
         </ul>
+      </div>
+      <div style={{ marginBottom: '16px' }}>
+        <h3>Predicted Spending Insights</h3>
+        <p>{reportData.forecast.forecastExplanation}</p>
+        <p><strong>Risks:</strong> {reportData.forecast.risks}</p>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', marginBottom: '16px' }}>
         <div style={{ flex: '1 1 300px', minHeight: '300px' }}>
@@ -202,11 +216,11 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, token }) => {
           </ResponsiveContainer>
         </div>
         <div style={{ flex: '1 1 300px', minHeight: '300px' }}>
-          <h3>Spending Trends in Month</h3>
+          <h3>Yearly Trends</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={lineData}>
+            <LineChart data={reportData.monthlyData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="day" />
+              <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
               <Legend />
@@ -215,20 +229,15 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, token }) => {
           </ResponsiveContainer>
         </div>
         <div style={{ flex: '1 1 300px', minHeight: '300px' }}>
-          <h3>Budgets vs Actual</h3>
+          <h3>Year-over-Year Comparison</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={barData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="category" />
+              <XAxis dataKey="year" />
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="budgeted" fill="#82ca9d" name="Budgeted" />
-              <Bar dataKey="actual" name="Actual">
-                {barData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.actual > entry.budgeted ? '#F44336' : '#4CAF50'} />
-                ))}
-              </Bar>
+              <Bar dataKey="spending" fill="#82ca9d" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -236,13 +245,11 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, token }) => {
       <button onClick={exportToPDF} style={{ backgroundColor: 'var(--accent)', color: 'var(--text-primary)', padding: '8px 16px', border: 'none', borderRadius: '4px' }}>
         Export to PDF
       </button>
-      {user.tier === 'BUSINESS' && (
-        <button onClick={exportToCSV} style={{ backgroundColor: 'var(--accent)', color: 'var(--text-primary)', padding: '8px 16px', border: 'none', borderRadius: '4px', marginLeft: '8px' }}>
-          Export to CSV
-        </button>
-      )}
+      <button onClick={exportToCSV} style={{ backgroundColor: 'var(--accent)', color: 'var(--text-primary)', padding: '8px 16px', border: 'none', borderRadius: '4px', marginLeft: '8px' }}>
+        Export to CSV
+      </button>
     </div>
   );
 };
 
-export default MonthlyReport;
+export default YearlyReport;

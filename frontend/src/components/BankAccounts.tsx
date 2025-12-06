@@ -17,7 +17,7 @@ const BankAccounts: React.FC<BankAccountsProps> = ({ user, token, onTransactions
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
 
   useEffect(() => {
-    if (user) {
+    if (user && user.tier !== 'FREE') {
       const fetchAccounts = async () => {
         const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/bank-accounts?userId=${user.id}`, {
           headers: {
@@ -54,6 +54,47 @@ const BankAccounts: React.FC<BankAccountsProps> = ({ user, token, onTransactions
       alert('Network error while importing transactions');
     }
   };
+
+  if (user.tier === 'FREE') {
+    return (
+      <div style={{ margin: '16px 0', padding: '16px', backgroundColor: '#FFFFFF', borderRadius: '8px', position: 'relative' }}>
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '8px',
+          zIndex: 1
+        }}>
+          <div style={{ textAlign: 'center', color: '#FFFFFF' }}>
+            <h4>Premium Feature</h4>
+            <p>Upgrade to link bank accounts</p>
+          </div>
+        </div>
+        <h3 style={{ color: '#009688' }}>Linked Bank Accounts</h3>
+        <p>No bank accounts linked yet.</p>
+        <button
+          disabled
+          style={{
+            backgroundColor: '#E0E0E0',
+            color: '#757575',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            cursor: 'not-allowed',
+            marginTop: '8px',
+          }}
+        >
+          Import Transactions
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ margin: '16px 0', padding: '16px', backgroundColor: '#FFFFFF', borderRadius: '8px' }}>

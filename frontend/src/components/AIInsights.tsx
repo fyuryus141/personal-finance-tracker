@@ -15,6 +15,17 @@ interface Anomaly {
   explanation: string;
 }
 
+interface CategoryRecommendation {
+  category: string;
+  recommendation: string;
+}
+
+interface AIInsightsData {
+  spendingTrends: string;
+  categoryRecommendations: CategoryRecommendation[];
+  financialAdvice: string;
+}
+
 interface AIInsightsProps {
   user: any;
   token: string | null;
@@ -22,6 +33,7 @@ interface AIInsightsProps {
 
 const AIInsights: React.FC<AIInsightsProps> = ({ user, token }) => {
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+  const [insights, setInsights] = useState<AIInsightsData | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [tier, setTier] = useState<string>('FREE');
 
@@ -43,6 +55,7 @@ const AIInsights: React.FC<AIInsightsProps> = ({ user, token }) => {
   useEffect(() => {
     if (tier === 'PREMIUM' || tier === 'BUSINESS') {
       fetchExpenses();
+      fetchInsights();
     }
   }, [tier]);
 
@@ -62,11 +75,22 @@ const AIInsights: React.FC<AIInsightsProps> = ({ user, token }) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ expenses: expenseData }),
     });
     const data = await response.json();
     setAnomalies(data);
+  };
+
+  const fetchInsights = async () => {
+    const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/ai-insights`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const data = await response.json();
+    setInsights(data);
   };
 
   const getExpenseById = (id: number) => expenses.find(e => e.id === id);
@@ -89,18 +113,51 @@ const AIInsights: React.FC<AIInsightsProps> = ({ user, token }) => {
         }}>
           <div style={{ textAlign: 'center', color: '#FFFFFF' }}>
             <h4>Premium Feature</h4>
-            <p>Upgrade for AI anomaly detection</p>
+            <p>Upgrade for AI-powered financial insights</p>
           </div>
         </div>
-        <h2 style={{ color: '#F44336' }}>AI Anomaly Alerts</h2>
-        <p style={{ color: '#757575' }}>No anomalies detected.</p>
+        <h2 style={{ color: '#F44336' }}>AI Insights</h2>
+        <p style={{ color: '#757575' }}>Unlock personalized spending analysis and recommendations.</p>
       </div>
     );
   }
 
   return (
     <div style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '8px', margin: '16px' }}>
-      <h2 style={{ color: '#F44336' }}>AI Anomaly Alerts</h2>
+      <h2 style={{ color: '#F44336' }}>AI Insights</h2>
+
+      {/* Spending Trends */}
+      {insights && (
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={{ color: '#2196F3', marginBottom: '8px' }}>Spending Trends</h3>
+          <p style={{ color: '#424242' }}>{insights.spendingTrends}</p>
+        </div>
+      )}
+
+      {/* Category Recommendations */}
+      {insights && insights.categoryRecommendations.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={{ color: '#2196F3', marginBottom: '8px' }}>Category Recommendations</h3>
+          <ul style={{ listStyle: 'none', padding: 0 }}>
+            {insights.categoryRecommendations.map((rec, index) => (
+              <li key={index} style={{ padding: '8px 0', borderBottom: '1px solid #E0E0E0' }}>
+                <strong style={{ color: '#212121' }}>{rec.category}:</strong> {rec.recommendation}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Financial Advice */}
+      {insights && (
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={{ color: '#2196F3', marginBottom: '8px' }}>Financial Advice</h3>
+          <p style={{ color: '#424242' }}>{insights.financialAdvice}</p>
+        </div>
+      )}
+
+      {/* Anomaly Alerts */}
+      <h3 style={{ color: '#F44336', marginBottom: '8px' }}>Anomaly Alerts</h3>
       {anomalies.length === 0 ? (
         <p style={{ color: '#757575' }}>No anomalies detected.</p>
       ) : (

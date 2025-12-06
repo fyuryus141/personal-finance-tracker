@@ -8,6 +8,7 @@ import SetBudgetForm from './components/SetBudgetForm';
 import AIInsights from './components/AIInsights';
 import SpendingCharts from './components/SpendingCharts';
 import MonthlyReport from './components/MonthlyReport';
+import YearlyReport from './components/YearlyReport';
 import BankLink from './components/BankLink';
 import BankAccounts from './components/BankAccounts';
 import Subscription from './components/Subscription';
@@ -27,7 +28,9 @@ function App() {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [categoryId, setCategoryId] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [currentView, setCurrentView] = useState('dashboard');
+  const [reportType, setReportType] = useState('monthly');
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
@@ -65,6 +68,7 @@ function App() {
     setDescription('');
     setDate(new Date().toISOString().split('T')[0]);
     setCategoryId('');
+    setTags([]);
   };
 
   const handleBudgetAdded = () => {
@@ -109,6 +113,8 @@ function App() {
                 setDate={setDate}
                 categoryId={categoryId}
                 setCategoryId={setCategoryId}
+                tags={tags}
+                setTags={setTags}
                 user={user}
                 token={token}
               /></div>
@@ -123,7 +129,31 @@ function App() {
         }
       case 'reports':
         console.log('Rendering reports');
-        return <MonthlyReport user={user} token={token} />;
+        return (
+          <div>
+            <div className="report-tabs">
+              <button
+                onClick={() => setReportType('monthly')}
+                className={`report-tab ${reportType === 'monthly' ? 'active' : ''}`}
+              >
+                Monthly
+              </button>
+              {user.tier !== 'FREE' && (
+                <button
+                  onClick={() => setReportType('yearly')}
+                  className={`report-tab ${reportType === 'yearly' ? 'active' : ''}`}
+                >
+                  Yearly
+                </button>
+              )}
+            </div>
+            {reportType === 'monthly' ? (
+              <MonthlyReport user={user} token={token} />
+            ) : (
+              <YearlyReport user={user} token={token} />
+            )}
+          </div>
+        );
       case 'plans':
         console.log('Rendering plans');
         return <Subscription user={user} token={token} />;
@@ -166,7 +196,7 @@ function App() {
               className={`nav-button ${currentView === 'reports' ? 'active' : ''}`}
             >
               <BarChart3 size={20} />
-              Monthly Reports
+              Reports
             </button>
             <button
               onClick={() => setCurrentView('plans')}

@@ -37,6 +37,10 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const [groups, setGroups] = useState<any[]>([]);
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [groupName, setGroupName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
 
   const profileForm = useForm({
     resolver: yupResolver(profileSchema),
@@ -46,6 +50,121 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
   const securityForm = useForm({
     resolver: yupResolver(securitySchema),
   });
+
+  useEffect(() => {
+    if (tabValue === 5 && user?.tier === 'BUSINESS') {
+      fetchGroups();
+      fetchInvitations();
+    }
+  }, [tabValue]);
+
+  const fetchGroups = async () => {
+    try {
+      const response = await fetch('https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/groups', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setGroups(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch groups', error);
+    }
+  };
+
+  const fetchInvitations = async () => {
+    try {
+      const response = await fetch('https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/invitations', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setInvitations(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch invitations', error);
+    }
+  };
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim()) return;
+    try {
+      const response = await fetch('https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: groupName }),
+      });
+      if (response.ok) {
+        setGroupName('');
+        fetchGroups();
+        setMessage({ type: 'success', text: 'Group created successfully' });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to create group' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error creating group' });
+    }
+  };
+
+  const handleInvite = async (groupId: number) => {
+    if (!inviteEmail.trim()) return;
+    try {
+      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/groups/${groupId}/invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email: inviteEmail }),
+      });
+      if (response.ok) {
+        setInviteEmail('');
+        setMessage({ type: 'success', text: 'Invitation sent' });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to send invitation' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error sending invitation' });
+    }
+  };
+
+  const handleAcceptInvitation = async (id: number) => {
+    try {
+      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/invitations/${id}/accept`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        fetchInvitations();
+        fetchGroups();
+        setMessage({ type: 'success', text: 'Invitation accepted' });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to accept invitation' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error accepting invitation' });
+    }
+  };
+
+  const handleDeclineInvitation = async (id: number) => {
+    try {
+      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/invitations/${id}/decline`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        fetchInvitations();
+        setMessage({ type: 'success', text: 'Invitation declined' });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to decline invitation' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error declining invitation' });
+    }
+  };
 
   const handleTabChange = (newValue: number) => {
     if (unsavedChanges) {
@@ -297,6 +416,14 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
           >
             Account
           </button>
+          {user?.tier === 'BUSINESS' && (
+            <button
+              className={`settings-tab ${tabValue === 5 ? 'active' : ''}`}
+              onClick={() => handleTabChange(5)}
+            >
+              Groups
+            </button>
+          )}
         </div>
 
         {tabValue === 0 && (
@@ -436,9 +563,34 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
           <div className="settings-card">
             <h3 className="settings-card-title">Privacy & Data</h3>
             <p>Export your data in JSON format for backup or migration purposes.</p>
-            <button className="login-button" onClick={handleDataExport} disabled={loading}>
-              {loading ? 'Exporting...' : 'Export Data'}
-            </button>
+            {user.tier !== 'FREE' ? (
+              <button className="login-button" onClick={handleDataExport} disabled={loading}>
+                {loading ? 'Exporting...' : 'Export Data'}
+              </button>
+            ) : (
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px',
+                  zIndex: 1
+                }}>
+                  <div style={{ textAlign: 'center', color: '#FFFFFF', fontSize: '12px' }}>
+                    Premium Feature
+                  </div>
+                </div>
+                <button className="login-button" disabled>
+                  Export Data
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -463,6 +615,58 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
                 {loading ? 'Deleting...' : 'Delete Account'}
               </button>
             </div>
+          </div>
+        )}
+
+        {tabValue === 5 && user?.tier === 'BUSINESS' && (
+          <div className="settings-card">
+            <h3 className="settings-card-title">Group Management</h3>
+            {groups.length === 0 ? (
+              <div>
+                <p>Create a group to collaborate with up to 4 other users.</p>
+                <input
+                  className="login-input"
+                  placeholder="Group Name"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                />
+                <button className="login-button" onClick={handleCreateGroup} disabled={!groupName.trim()}>
+                  Create Group
+                </button>
+              </div>
+            ) : (
+              <div>
+                <h4>Your Groups</h4>
+                {groups.map((group) => (
+                  <div key={group.id}>
+                    <h5>{group.name}</h5>
+                    <p>Owner: {group.owner.name}</p>
+                    <p>Members: {group.members.map((m: any) => m.name).join(', ')}</p>
+                    <input
+                      className="login-input"
+                      placeholder="Invite Email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                    />
+                    <button className="login-button" onClick={() => handleInvite(group.id)} disabled={!inviteEmail.trim()}>
+                      Invite
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {invitations.length > 0 && (
+              <div>
+                <h4>Pending Invitations</h4>
+                {invitations.map((inv) => (
+                  <div key={inv.id}>
+                    <p>Invited to {inv.group.name} by {inv.invitedBy.name}</p>
+                    <button className="login-button" onClick={() => handleAcceptInvitation(inv.id)}>Accept</button>
+                    <button className="settings-delete-button" onClick={() => handleDeclineInvitation(inv.id)}>Decline</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
