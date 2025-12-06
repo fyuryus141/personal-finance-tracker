@@ -534,6 +534,86 @@ app.get('/reports/monthly', authMiddleware, async (req: any, res) => {
   }
 });
 
+// AI Insights for Premium users
+app.get('/ai-insights', authMiddleware, checkTier('PREMIUM'), async (req: any, res) => {
+  try {
+    const userId = req.userId;
+
+    // Fetch user's expenses, categories, and budgets
+    const expenses = await prisma.expense.findMany({
+      where: { userId },
+      include: { category: true },
+      orderBy: { date: 'desc' },
+    });
+
+    const categories = await prisma.category.findMany({
+      where: { userId },
+    });
+
+    const budgets = await prisma.budget.findMany({
+      where: { userId },
+      include: { category: true },
+    });
+
+    // Generate insights using OpenAI
+    const insights = await generateAIInsights(expenses, categories, budgets);
+
+    res.json(insights);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to generate AI insights' });
+  }
+});
+
+async function generateAIInsights(expenses: any[], categories: any[], budgets: any[]) {
+  const prompt = `
+You are a financial advisor AI. Analyze the user's financial data and provide personalized insights for Premium users.
+
+User Data:
+- Expenses: ${JSON.stringify(expenses.slice(0, 50), null, 2)} (showing last 50 expenses)
+- Categories: ${JSON.stringify(categories, null, 2)}
+- Budgets: ${JSON.stringify(budgets, null, 2)}
+
+Provide insights in the following JSON format:
+{
+  "spendingTrends": "A brief summary of spending patterns over time (e.g., 'Your spending has increased by 15% this month compared to last month.')",
+  "categoryRecommendations": [
+    {
+      "category": "Category name",
+      "recommendation": "Specific advice (e.g., 'Consider reducing dining out expenses by 20% to save $50/month')"
+    }
+  ],
+  "financialAdvice": "General personalized financial advice based on their spending habits, budgets, and patterns."
+}
+
+Keep recommendations actionable and positive. Focus on trends, potential savings, and financial health.
+`;
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-3.5-turbo',
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: 1000,
+  });
+
+  const content = response.choices[0].message?.content;
+  if (!content) return {
+    spendingTrends: "Unable to analyze spending trends at this time.",
+    categoryRecommendations: [],
+    financialAdvice: "Please ensure you have sufficient expense data for personalized insights."
+  };
+
+  try {
+    return JSON.parse(content);
+  } catch (e) {
+    console.error('Failed to parse OpenAI response for insights:', content);
+    return {
+      spendingTrends: "Unable to analyze spending trends at this time.",
+      categoryRecommendations: [],
+      financialAdvice: "Please ensure you have sufficient expense data for personalized insights."
+    };
+  }
+}
+
 // OCR route
 app.post('/ocr', checkTier('PREMIUM'), upload.single('receipt'), async (req, res) => {
   if (!req.file) {
