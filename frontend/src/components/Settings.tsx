@@ -226,9 +226,10 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
           return;
         }
 
-        console.log('Profile picture updated');
-        // Update user with new picture path if needed, but backend may not return it
-        // For now, assume updatedUser has it or refresh
+        const picData = await picResponse.json();
+        console.log('Profile picture updated:', picData);
+        // Update user with new picture
+        onUserUpdate({ ...updatedUser, profilePicture: picData.profilePicture });
       }
 
       onUserUpdate(updatedUser);
@@ -432,7 +433,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
             <form className="login-form" onSubmit={profileForm.handleSubmit(handleProfileSubmit)}>
               <div className="settings-avatar-section">
                 <img
-                  src={profilePicture ? URL.createObjectURL(profilePicture) : user?.profilePicture}
+                  src={profilePicture ? URL.createObjectURL(profilePicture) : user?.profilePicture ? `${process.env.REACT_APP_API_BASE}/uploads/${user.profilePicture}` : '/default-avatar.png'}
                   alt="Profile"
                   className="settings-avatar"
                 />
