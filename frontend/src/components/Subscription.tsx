@@ -51,9 +51,11 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
       price: '0',
       features: [
         'Basic expense tracking',
-        'Manual entry',
-        'Basic categorization',
-        'Monthly summary reports'
+        'Manual entry only',
+        'Up to 3 categories',
+        'Monthly reports',
+        'Email notifications',
+        'Feedback support'
       ],
       buttonText: currentTier === 'FREE' ? 'Current Plan' : 'Downgrade',
       link: null,
@@ -63,12 +65,12 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
       name: 'Premium',
       price: '5',
       features: [
-        'Unlimited expenses',
+        'Unlimited expenses & categories',
         'OCR receipt scanning',
-        'AI anomaly detection',
-        'Bank API integration',
-        'Advanced visualizations',
-        'Email reports'
+        'AI-powered insights & anomaly detection',
+        'Yearly reports & custom date ranges',
+        'Advanced analytics',
+        'Data export (JSON)'
       ],
       buttonText: currentTier === 'PREMIUM' ? 'Current Plan' : 'Subscribe',
       link: 'https://ko-fi.com/paul5150?amount=5',
@@ -79,11 +81,11 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
       price: '10',
       features: [
         'All Premium features',
-        'Multi-user support (up to 5 users)',
-        'Advanced reporting and analytics',
+        'Multi-user groups (up to 5 users)',
+        'CSV export & advanced reporting',
+        'Group expense management',
         'Priority support',
-        'Custom categories and tags',
-        'Export data in multiple formats'
+        'API access'
       ],
       buttonText: currentTier === 'BUSINESS' ? 'Current Plan' : 'Subscribe',
       link: 'https://ko-fi.com/paul5150?amount=10',

@@ -4,9 +4,9 @@ import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
 import vision from '@google-cloud/vision';
 import OpenAI from 'openai';
-import { Configuration as PlaidConfiguration, PlaidApi, PlaidEnvironments, Products, CountryCode } from 'plaid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { sendFeedbackEmail } from './emailService';
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
@@ -34,17 +34,6 @@ try {
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy-key',
 });
-
-const plaidConfig = new PlaidConfiguration({
-  basePath: PlaidEnvironments.sandbox, // Use 'sandbox' for development
-  baseOptions: {
-    headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID || 'dummy-client-id',
-      'PLAID-SECRET': process.env.PLAID_SECRET || 'dummy-secret',
-    },
-  },
-});
-const plaidClient = new PlaidApi(plaidConfig);
 
 const port = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -185,7 +174,6 @@ app.get('/users/:id/export', authMiddleware, async (req: any, res) => {
       expenses: { include: { category: true } },
       categories: true,
       budgets: { include: { category: true } },
-      bankAccounts: { include: { transactions: true } },
       feedbacks: true,
       subscriptions: { include: { payments: true } },
       payments: true,
@@ -633,161 +621,6 @@ app.post('/ocr', checkTier('PREMIUM'), upload.single('receipt'), async (req, res
   }
 });
 
-// Plaid routes
-app.post('/plaid/link-token', checkTier('PREMIUM'), async (req, res) => {
-  const { userId } = req.body;
-  try {
-    const response = await plaidClient.linkTokenCreate({
-      user: { client_user_id: userId.toString() },
-      client_name: 'Personal Finance Tracker',
-      products: [Products.Transactions],
-      country_codes: [CountryCode.Us],
-      language: 'en',
-    });
-    res.json({ link_token: response.data.link_token });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to create link token' });
-  }
-});
-
-app.post('/plaid/exchange', checkTier('PREMIUM'), async (req, res) => {
-  const { public_token, userId } = req.body;
-  try {
-    const response = await plaidClient.itemPublicTokenExchange({ public_token });
-    const access_token = response.data.access_token;
-    const item_id = response.data.item_id;
-
-    // Get accounts
-    const accountsResponse = await plaidClient.accountsGet({ access_token });
-    const accounts = accountsResponse.data.accounts;
-
-    // Store bank accounts
-    for (const account of accounts) {
-      await prisma.bankAccount.upsert({
-        where: { plaidAccountId: account.account_id },
-        update: {
-          name: account.name,
-          type: account.type,
-          balance: account.balances.current || 0,
-        },
-        create: {
-          userId,
-          plaidAccountId: account.account_id,
-          name: account.name,
-          type: account.type,
-          balance: account.balances.current || 0,
-        },
-      });
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to exchange token' });
-  }
-});
-
-app.get('/plaid/transactions', checkTier('PREMIUM'), async (req, res) => {
-  const { userId } = req.query;
-  try {
-    // Get all bank accounts for user
-    const bankAccounts = await prisma.bankAccount.findMany({
-      where: { userId: Number(userId) },
-    });
-
-    if (bankAccounts.length === 0) {
-      return res.json([]);
-    }
-
-    // For simplicity, assume one access token per user, but actually need to store item_id and access_token
-    // For now, hardcode or assume. In real app, store access_token per item.
-    // Since no auth, and sandbox, let's fetch from sandbox access token if available.
-    // Actually, need to store access_token. Let's add access_token to BankAccount or separate table.
-
-    // For demo, assume we have access_token from env or something. But properly, need to store it.
-
-    // To make it work, let's add access_token to BankAccount model. Wait, no, access_token is per item, not per account.
-
-    // Actually, need Item model. But for simplicity, assume one item per user, and store access_token in User or something.
-
-    // Add access_token to User model temporarily.
-
-    // For now, use a hardcoded sandbox token for demo.
-
-    const access_token = process.env.PLAID_ACCESS_TOKEN_SANDBOX; // Need to set this
-
-    if (!access_token) {
-      return res.status(500).json({ error: 'Access token not configured' });
-    }
-
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30); // Last 30 days
-    const endDate = new Date();
-
-    const response = await plaidClient.transactionsGet({
-      access_token,
-      start_date: startDate.toISOString().split('T')[0],
-      end_date: endDate.toISOString().split('T')[0],
-    });
-
-    const transactions = response.data.transactions;
-
-    // Store transactions
-    for (const transaction of transactions) {
-      const bankAccount = bankAccounts.find(acc => acc.plaidAccountId === transaction.account_id);
-      if (bankAccount) {
-        await prisma.transaction.upsert({
-          where: { plaidTransactionId: transaction.transaction_id },
-          update: {
-            amount: transaction.amount,
-            description: transaction.name,
-            date: new Date(transaction.date),
-            category: transaction.category ? transaction.category[0] : null,
-          },
-          create: {
-            bankAccountId: bankAccount.id,
-            plaidTransactionId: transaction.transaction_id,
-            amount: transaction.amount,
-            description: transaction.name,
-            date: new Date(transaction.date),
-            category: transaction.category ? transaction.category[0] : null,
-          },
-        });
-
-        // Import as expense if outflow (negative amount)
-        if (transaction.amount < 0) {
-          await prisma.expense.create({
-            data: {
-              amount: -transaction.amount, // Make positive
-              description: transaction.name,
-              date: new Date(transaction.date),
-              categoryId: 1, // Default category
-              userId: Number(userId),
-            },
-          });
-        }
-      }
-    }
-
-    res.json(transactions);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch transactions' });
-  }
-});
-
-app.get('/bank-accounts', authMiddleware, async (req: any, res) => {
-  try {
-    const accounts = await prisma.bankAccount.findMany({
-      where: { userId: req.userId },
-    });
-    res.json(accounts);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch bank accounts' });
-  }
-});
 
 // Feedback route
 app.post('/feedback', authMiddleware, feedbackUpload.array('attachments', 3), async (req: any, res) => {
@@ -805,6 +638,29 @@ app.post('/feedback', authMiddleware, feedbackUpload.array('attachments', 3), as
         attachments: JSON.stringify(attachments)
       },
     });
+
+    // Get user details for email
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (user) {
+      // Send feedback email to admin
+      try {
+        await sendFeedbackEmail(
+          user.email,
+          user.name || 'Anonymous User',
+          subject,
+          message,
+          type,
+          parseInt(rating) || 1,
+          category,
+          attachments,
+          user.tier === 'BUSINESS' // priority flag
+        );
+      } catch (emailError) {
+        console.error('Failed to send feedback email:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
+
     res.json(feedback);
   } catch (error) {
     res.status(500).json({ error: 'Failed to submit feedback' });

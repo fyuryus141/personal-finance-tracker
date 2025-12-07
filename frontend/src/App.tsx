@@ -9,8 +9,6 @@ import AIInsights from './components/AIInsights';
 import SpendingCharts from './components/SpendingCharts';
 import MonthlyReport from './components/MonthlyReport';
 import YearlyReport from './components/YearlyReport';
-import BankLink from './components/BankLink';
-import BankAccounts from './components/BankAccounts';
 import Subscription from './components/Subscription';
 import Login from './components/Login';
 import Feedback from './components/Feedback';
@@ -94,8 +92,6 @@ function App() {
         try {
           return (
             <div className="main-content">
-              <div className="component-card"><BankLink /></div>
-              <div className="component-card"><BankAccounts user={user} token={token} onTransactionsImported={handleExpenseAdded} /></div>
               <div className="component-card"><SetBudgetForm onBudgetAdded={handleBudgetAdded} user={user} token={token} /></div>
               <div className="component-card"><BudgetList key={budgetRefreshKey} user={user} token={token} /></div>
               <div className="component-card"><ReceiptScanner
