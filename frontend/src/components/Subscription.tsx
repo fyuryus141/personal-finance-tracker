@@ -68,9 +68,11 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
         'Unlimited expenses & categories',
         'OCR receipt scanning',
         'AI-powered insights & anomaly detection',
-        'Yearly reports & custom date ranges',
-        'Advanced analytics',
-        'Data export (JSON)'
+        'Custom date range reports',
+        'Budget alerts & notifications',
+        'Advanced analytics & trends',
+        'Export to PDF & Excel',
+        'Data export (JSON, CSV, PDF, Excel)'
       ],
       buttonText: currentTier === 'PREMIUM' ? 'Current Plan' : 'Subscribe',
       link: 'https://ko-fi.com/paul5150?amount=5',

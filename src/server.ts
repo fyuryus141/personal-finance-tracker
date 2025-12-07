@@ -7,6 +7,8 @@ import OpenAI from 'openai';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { sendFeedbackEmail } from './emailService';
+import PDFDocument from 'pdfkit';
+import ExcelJS from 'exceljs';
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
@@ -181,6 +183,190 @@ app.get('/users/:id/export', authMiddleware, async (req: any, res) => {
   });
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
+});
+
+// Export to PDF (PREMIUM)
+app.get('/export/pdf', authMiddleware, checkTier('PREMIUM'), async (req: any, res) => {
+  try {
+    const { startDate, endDate, type = 'expenses' } = req.query;
+
+    let expenses: any[] = [];
+    let title = 'Expense Report';
+
+    if (startDate && endDate) {
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      expenses = await prisma.expense.findMany({
+        where: {
+          userId: req.userId,
+          date: { gte: start, lte: end },
+        },
+        include: { category: true },
+        orderBy: { date: 'asc' },
+      });
+      title = `Expense Report (${start.toISOString().split('T')[0]} to ${end.toISOString().split('T')[0]})`;
+    } else {
+      expenses = await prisma.expense.findMany({
+        where: { userId: req.userId },
+        include: { category: true },
+        orderBy: { date: 'desc' },
+        take: 100, // Limit for PDF generation
+      });
+      title = 'Recent Expenses Report';
+    }
+
+    // Create PDF
+    const doc = new PDFDocument();
+    const buffers: Buffer[] = [];
+
+    doc.on('data', buffers.push.bind(buffers));
+    doc.on('end', () => {
+      const pdfData = Buffer.concat(buffers);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf"`);
+      res.send(pdfData);
+    });
+
+    // PDF Content
+    doc.fontSize(20).text(title, { align: 'center' });
+    doc.moveDown();
+
+    doc.fontSize(12).text(`Generated on: ${new Date().toLocaleDateString()}`);
+    doc.text(`Total Expenses: ${expenses.length}`);
+    doc.moveDown();
+
+    // Summary by category
+    const categoryTotals: Record<string, number> = {};
+    expenses.forEach(exp => {
+      categoryTotals[exp.category.name] = (categoryTotals[exp.category.name] || 0) + exp.amount;
+    });
+
+    doc.fontSize(14).text('Category Summary:');
+    Object.entries(categoryTotals).forEach(([category, total]) => {
+      doc.fontSize(10).text(`${category}: $${total.toFixed(2)}`);
+    });
+    doc.moveDown();
+
+    // Expense details
+    doc.fontSize(14).text('Expense Details:');
+    doc.moveDown();
+
+    expenses.forEach(exp => {
+      doc.fontSize(10).text(
+        `${exp.date.toISOString().split('T')[0]} - ${exp.description} - ${exp.category.name} - $${exp.amount.toFixed(2)}`
+      );
+    });
+
+    doc.end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
+// Export to Excel (PREMIUM)
+app.get('/export/excel', authMiddleware, checkTier('PREMIUM'), async (req: any, res) => {
+  try {
+    const { startDate, endDate, type = 'expenses' } = req.query;
+
+    let expenses: any[] = [];
+    let filename = 'expense_report';
+
+    if (startDate && endDate) {
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      expenses = await prisma.expense.findMany({
+        where: {
+          userId: req.userId,
+          date: { gte: start, lte: end },
+        },
+        include: { category: true },
+        orderBy: { date: 'asc' },
+      });
+      filename = `expenses_${start.toISOString().split('T')[0]}_to_${end.toISOString().split('T')[0]}`;
+    } else {
+      expenses = await prisma.expense.findMany({
+        where: { userId: req.userId },
+        include: { category: true },
+        orderBy: { date: 'desc' },
+        take: 1000, // Limit for Excel generation
+      });
+      filename = 'recent_expenses';
+    }
+
+    // Create Excel workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Expenses');
+
+    // Add headers
+    worksheet.columns = [
+      { header: 'Date', key: 'date', width: 12 },
+      { header: 'Description', key: 'description', width: 30 },
+      { header: 'Category', key: 'category', width: 15 },
+      { header: 'Amount', key: 'amount', width: 12 },
+    ];
+
+    // Style headers
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE6E6FA' }
+    };
+
+    // Add data
+    expenses.forEach(exp => {
+      worksheet.addRow({
+        date: exp.date.toISOString().split('T')[0],
+        description: exp.description,
+        category: exp.category.name,
+        amount: exp.amount,
+      });
+    });
+
+    // Add summary sheet
+    const summarySheet = workbook.addWorksheet('Summary');
+    summarySheet.columns = [
+      { header: 'Category', key: 'category', width: 20 },
+      { header: 'Total Amount', key: 'total', width: 15 },
+      { header: 'Count', key: 'count', width: 10 },
+    ];
+
+    const categorySummary: Record<string, { total: number; count: number }> = {};
+    expenses.forEach(exp => {
+      if (!categorySummary[exp.category.name]) {
+        categorySummary[exp.category.name] = { total: 0, count: 0 };
+      }
+      categorySummary[exp.category.name].total += exp.amount;
+      categorySummary[exp.category.name].count += 1;
+    });
+
+    Object.entries(categorySummary).forEach(([category, data]) => {
+      summarySheet.addRow({
+        category,
+        total: data.total,
+        count: data.count,
+      });
+    });
+
+    // Style summary headers
+    summarySheet.getRow(1).font = { bold: true };
+    summarySheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE6E6FA' }
+    };
+
+    // Send Excel file
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to generate Excel file' });
+  }
 });
 
 // PUT /users/:id
@@ -370,6 +556,83 @@ app.get('/budgets', authMiddleware, async (req: any, res) => {
   res.json(budgets);
 });
 
+// Budget Alerts (PREMIUM)
+app.get('/budgets/alerts', authMiddleware, checkTier('PREMIUM'), async (req: any, res) => {
+  try {
+    const budgets = await prisma.budget.findMany({
+      where: { userId: req.userId },
+      include: { category: true },
+    });
+
+    const alerts: any[] = [];
+
+    for (const budget of budgets) {
+      // Calculate spending for the current period
+      let startDate: Date;
+      let endDate: Date;
+      const now = new Date();
+
+      if (budget.period === 'monthly') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      } else if (budget.period === 'yearly') {
+        startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = new Date(now.getFullYear() + 1, 0, 1);
+      } else { // daily
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      }
+
+      const expenses = await prisma.expense.findMany({
+        where: {
+          userId: req.userId,
+          categoryId: budget.categoryId,
+          date: {
+            gte: startDate,
+            lt: endDate,
+          },
+        },
+      });
+
+      const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const percentageUsed = (totalSpent / budget.amount) * 100;
+
+      // Check for alerts
+      if (percentageUsed >= 100) {
+        alerts.push({
+          budgetId: budget.id,
+          category: budget.category.name,
+          budgetAmount: budget.amount,
+          spent: totalSpent,
+          percentage: percentageUsed,
+          status: 'exceeded',
+          message: `Budget exceeded for ${budget.category.name}: $${totalSpent.toFixed(2)} spent of $${budget.amount.toFixed(2)} budget`,
+          period: budget.period,
+        });
+      } else if (percentageUsed >= 80) {
+        alerts.push({
+          budgetId: budget.id,
+          category: budget.category.name,
+          budgetAmount: budget.amount,
+          spent: totalSpent,
+          percentage: percentageUsed,
+          status: 'warning',
+          message: `Budget warning for ${budget.category.name}: ${percentageUsed.toFixed(1)}% used ($${totalSpent.toFixed(2)} of $${budget.amount.toFixed(2)})`,
+          period: budget.period,
+        });
+      }
+    }
+
+    res.json({
+      alerts: alerts.sort((a, b) => b.percentage - a.percentage), // Sort by highest percentage first
+      totalAlerts: alerts.length,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to check budget alerts' });
+  }
+});
+
 app.post('/budgets', authMiddleware, async (req: any, res) => {
   const { name, amount, period, categoryId } = req.body;
   const budget = await prisma.budget.create({
@@ -519,6 +782,107 @@ app.get('/reports/monthly', authMiddleware, async (req: any, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to generate monthly report' });
+  }
+});
+
+// Custom Date Range Reports (PREMIUM)
+app.get('/reports/custom', authMiddleware, checkTier('PREMIUM'), async (req: any, res) => {
+  const { startDate, endDate } = req.query;
+  if (!startDate || !endDate) {
+    return res.status(400).json({ error: 'startDate and endDate are required' });
+  }
+
+  try {
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+    }
+
+    if (start >= end) {
+      return res.status(400).json({ error: 'startDate must be before endDate' });
+    }
+
+    const expenses = await prisma.expense.findMany({
+      where: {
+        userId: req.userId,
+        date: {
+          gte: start,
+          lte: end,
+        },
+      },
+      include: { category: true },
+      orderBy: { date: 'asc' },
+    });
+
+    // Aggregate expenses by category
+    const categoryTotals: Record<number, { category: string; spent: number; expenses: any[] }> = {};
+    expenses.forEach(exp => {
+      if (!categoryTotals[exp.categoryId]) {
+        categoryTotals[exp.categoryId] = { category: exp.category.name, spent: 0, expenses: [] };
+      }
+      categoryTotals[exp.categoryId].spent += exp.amount;
+      categoryTotals[exp.categoryId].expenses.push(exp);
+    });
+
+    // Get budgets (find budgets that overlap with the date range)
+    const budgets = await prisma.budget.findMany({
+      where: { userId: req.userId },
+      include: { category: true },
+    });
+
+    // Prepare category data with budget comparison (prorated for the date range)
+    const daysInRange = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const categoryData = Object.entries(categoryTotals).map(([catId, data]) => {
+      const budget = budgets.find(b => b.categoryId === Number(catId));
+      let proratedBudget = 0;
+      if (budget) {
+        if (budget.period === 'monthly') {
+          proratedBudget = (budget.amount / 30) * daysInRange;
+        } else if (budget.period === 'yearly') {
+          proratedBudget = (budget.amount / 365) * daysInRange;
+        } else {
+          proratedBudget = budget.amount; // daily budget
+        }
+      }
+      return {
+        category: data.category,
+        spent: data.spent,
+        budget: proratedBudget,
+        status: proratedBudget > 0 ? (data.spent > proratedBudget ? 'over' : 'under') : 'no budget',
+      };
+    });
+
+    const totalSpent = Object.values(categoryTotals).reduce((sum, cat) => sum + cat.spent, 0);
+
+    // Group expenses by date for trend analysis
+    const dailySpending: Record<string, number> = {};
+    expenses.forEach(exp => {
+      const dateKey = exp.date.toISOString().split('T')[0];
+      dailySpending[dateKey] = (dailySpending[dateKey] || 0) + exp.amount;
+    });
+
+    const dailyData = Object.entries(dailySpending).map(([date, amount]) => ({
+      date,
+      amount,
+    })).sort((a, b) => a.date.localeCompare(b.date));
+
+    // Detect anomalies
+    const anomalies = await detectAnomalies(expenses);
+
+    res.json({
+      startDate: start.toISOString().split('T')[0],
+      endDate: end.toISOString().split('T')[0],
+      totalSpent,
+      categoryData,
+      dailyData,
+      anomalies,
+      totalDays: daysInRange,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to generate custom date range report' });
   }
 });
 
