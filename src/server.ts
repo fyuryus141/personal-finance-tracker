@@ -48,6 +48,21 @@ app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
 
+// Middleware to check user tier
+const checkTier = (requiredTier: string) => {
+  return async (req: any, res: any, next: any) => {
+    const userId = req.userId || req.query.userId || req.body.userId;
+    if (!userId) return res.status(400).json({ error: 'userId required' });
+    const user = await prisma.user.findUnique({ where: { id: Number(userId) } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const tierOrder = ['FREE', 'PREMIUM', 'BUSINESS'];
+    if (tierOrder.indexOf((user as any).tier) < tierOrder.indexOf(requiredTier)) {
+      return res.status(403).json({ error: 'Premium feature required' });
+    }
+    next();
+  };
+};
+
 // Auth routes
 app.post('/auth/register', async (req, res) => {
   const { email, password, name } = req.body;
@@ -442,20 +457,6 @@ app.put('/subscriptions/:id/cancel', authMiddleware, async (req: any, res) => {
   }
 });
 
-// Middleware to check user tier
-const checkTier = (requiredTier: string) => {
-  return async (req: any, res: any, next: any) => {
-    const userId = req.userId || req.query.userId || req.body.userId;
-    if (!userId) return res.status(400).json({ error: 'userId required' });
-    const user = await prisma.user.findUnique({ where: { id: Number(userId) } });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    const tierOrder = ['FREE', 'PREMIUM', 'BUSINESS'];
-    if (tierOrder.indexOf((user as any).tier) < tierOrder.indexOf(requiredTier)) {
-      return res.status(403).json({ error: 'Premium feature required' });
-    }
-    next();
-  };
-};
 
 app.get('/categories', authMiddleware, async (req: any, res) => {
   const categories = await prisma.category.findMany({
