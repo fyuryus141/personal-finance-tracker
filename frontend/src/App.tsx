@@ -9,6 +9,7 @@ import AIInsights from './components/AIInsights';
 import SpendingCharts from './components/SpendingCharts';
 import MonthlyReport from './components/MonthlyReport';
 import YearlyReport from './components/YearlyReport';
+import CustomDateRangeReport from './components/CustomDateRangeReport';
 import Subscription from './components/Subscription';
 import Login from './components/Login';
 import Feedback from './components/Feedback';
@@ -142,11 +143,21 @@ function App() {
                   Yearly
                 </button>
               )}
+              {(user.tier === 'PREMIUM' || user.tier === 'BUSINESS') && (
+                <button
+                  onClick={() => setReportType('custom')}
+                  className={`report-tab ${reportType === 'custom' ? 'active' : ''}`}
+                >
+                  Custom Range
+                </button>
+              )}
             </div>
             {reportType === 'monthly' ? (
               <MonthlyReport user={user} token={token} />
-            ) : (
+            ) : reportType === 'yearly' ? (
               <YearlyReport user={user} token={token} />
+            ) : (
+              <CustomDateRangeReport user={user} token={token} />
             )}
           </div>
         );

@@ -241,6 +241,65 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, token }) => {
           Export to CSV
         </button>
       )}
+
+      {/* PREMIUM Export Options */}
+      {(user.tier === 'PREMIUM' || user.tier === 'BUSINESS') && (
+        <>
+          <button
+            onClick={async () => {
+              try {
+                const response = await fetch(`${process.env.REACT_APP_API_BASE}/export/pdf?startDate=${year}-${month.toString().padStart(2, '0')}-01&endDate=${year}-${month.toString().padStart(2, '0')}-${new Date(year, month, 0).getDate()}`, {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                  },
+                });
+                if (!response.ok) throw new Error('Export failed');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `monthly-report-${month}-${year}.pdf`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+              } catch (error) {
+                alert('Failed to export PDF');
+              }
+            }}
+            style={{ backgroundColor: 'var(--accent)', color: 'var(--text-primary)', padding: '8px 16px', border: 'none', borderRadius: '4px', marginLeft: '8px' }}
+          >
+            Export PDF (Enhanced)
+          </button>
+
+          <button
+            onClick={async () => {
+              try {
+                const response = await fetch(`${process.env.REACT_APP_API_BASE}/export/excel?startDate=${year}-${month.toString().padStart(2, '0')}-01&endDate=${year}-${month.toString().padStart(2, '0')}-${new Date(year, month, 0).getDate()}`, {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                  },
+                });
+                if (!response.ok) throw new Error('Export failed');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `monthly-report-${month}-${year}.xlsx`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+              } catch (error) {
+                alert('Failed to export Excel');
+              }
+            }}
+            style={{ backgroundColor: 'var(--accent)', color: 'var(--text-primary)', padding: '8px 16px', border: 'none', borderRadius: '4px', marginLeft: '8px' }}
+          >
+            Export Excel
+          </button>
+        </>
+      )}
     </div>
   );
 };
