@@ -1,0 +1,12 @@
+[eval]:1
+const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); prisma.user.updateMany({where: {email: 'test@business.com'}, data: {tier: 'BUSINESS'}}).then(r = BUSINESS user:', r)).finally(() =;
+                                                                                                                                                                                        ^^^^^^^^
+Expected ',', got 'user'
+
+SyntaxError: missing ) after argument list
+    at makeContextifyScript (node:internal/vm:194:14)
+    at compileScript (node:internal/process/execution:388:10)
+    at evalTypeScript (node:internal/process/execution:260:22)
+    at node:internal/main/eval_string:71:3
+
+Node.js v24.11.1
