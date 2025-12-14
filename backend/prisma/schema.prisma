@@ -1,0 +1,201 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+  password String @default("")
+  tier  String  @default("FREE")
+  profilePicture String?
+  emailReports Boolean @default(true)
+  emailVerified Boolean @default(false)
+  verificationToken String?
+  expenses Expense[]
+  categories Category[]
+  budgets Budget[]
+  bankAccounts BankAccount[]
+  plaidItems PlaidItem[]
+  feedbacks Feedback[]
+  subscriptions Subscription[]
+  payments Payment[]
+  groups UserGroup[] @relation("UserGroupMembers")
+  ownedGroups UserGroup[] @relation("GroupOwner")
+  invitationsSent UserGroupInvitation[] @relation("InvitedBy")
+  invoices       Invoice[]
+  taxReports     TaxReport[]
+  // Add more fields as needed
+}
+
+model UserGroup {
+  id          Int                     @id @default(autoincrement())
+  name        String
+  ownerId     Int
+  owner       User                    @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     User[]                  @relation("UserGroupMembers")
+  categories  Category[]
+  expenses    Expense[]
+  budgets     Budget[]
+  invitations UserGroupInvitation[]
+  createdAt   DateTime                @default(now())
+}
+
+model Category {
+  id      Int        @id @default(autoincrement())
+  name    String
+  userId  Int?
+  user    User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId Int?
+  group   UserGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+  budgets Budget[]
+}
+
+model Expense {
+  id          Int        @id @default(autoincrement())
+  amount      Float
+  description String
+  date        DateTime
+  categoryId  Int
+  tags        String?
+  userId      Int?
+  user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId     Int?
+  group       UserGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  category    Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model Budget {
+  id         Int        @id @default(autoincrement())
+  name       String
+  amount     Float
+  period     String     // e.g., "monthly"
+  categoryId Int
+  userId     Int?
+  user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId    Int?
+  group      UserGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model PlaidItem {
+  id             Int         @id @default(autoincrement())
+  userId         Int
+  plaidItemId    String      @unique
+  accessToken    String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankAccounts   BankAccount[]
+}
+
+model BankAccount {
+  id             Int         @id @default(autoincrement())
+  userId         Int
+  plaidItemId    Int
+  plaidAccountId String      @unique
+  name           String
+  type           String      // e.g., "checking", "savings"
+  balance        Float
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plaidItem      PlaidItem   @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+}
+
+model Transaction {
+  id                Int         @id @default(autoincrement())
+  bankAccountId     Int
+  plaidTransactionId String     @unique
+  amount            Float
+  description       String
+  date              DateTime
+  category          String?
+  bankAccount       BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+}
+
+model Feedback {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  subject    String?
+  message    String
+  type       String   // 'feedback', 'bug', 'feature', 'ui', 'performance', 'other'
+  rating     Int?     // 1-5 stars
+  category   String?  // same as type
+  priority   Boolean  @default(false)
+  attachments String? // JSON array of file paths
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tier      String   // "PREMIUM" or "BUSINESS"
+  amount    Float
+  status    String   @default("ACTIVE") // ACTIVE, CANCELLED, EXPIRED
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  kofiId    String?  // Ko-fi transaction ID
+  user      User     @relation(fields: [userId], references: [id])
+  payments  Payment[]
+}
+
+model Payment {
+  id             Int          @id @default(autoincrement())
+  userId         Int
+  amount         Float
+  currency       String       @default("USD")
+  status         String       // SUCCESS, FAILED, PENDING
+  kofiId         String       @unique
+  timestamp      DateTime     @default(now())
+  subscriptionId Int?
+  user           User         @relation(fields: [userId], references: [id])
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+}
+
+model UserGroupInvitation {
+  id           Int        @id @default(autoincrement())
+  groupId      Int
+  invitedEmail String
+  invitedById  Int
+  invitedBy    User       @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+  group        UserGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  status       String     @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  createdAt    DateTime   @default(now())
+}
+
+model Invoice {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  title        String
+  invoiceDate  DateTime  @default(now())
+  dueDate      DateTime?
+  items        String?
+  subtotal     Float
+  taxRate      Float     @default(0.13)
+  taxAmount    Float
+  total        Float
+  status       String    @default("DRAFT")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TaxReport {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  period          String
+  year            Int
+  totalExpenses   Float
+  deductibleExpenses Float
+  categories      String
+  estimatedTax    Float
+  notes           String?
+  generatedAt     DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
