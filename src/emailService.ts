@@ -9,13 +9,34 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendVerificationEmail = async (email: string, token: string) => {
+// FRONTEND_URL environment variable:
+//   - Production: https://your-netlify-site.netlify.app (set on Heroku)
+//   - Development fallback: http://localhost:3000
+// For deploy:
+// - Backend (Heroku): Set FRONTEND_URL to Netlify site URL
+// - Frontend (Netlify): Already uses prod backend URL in EmailVerification.tsx
   const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify?token=${token}`;
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to: email,
-    subject: 'Verify Your Email - Personal Finance Tracker',
-    html: `<p>Click <a href="${verificationUrl}">here</a> to verify your account.</p>`,
-  });
+  console.log(`Verification URL for ${email}: ${verificationUrl}`);
+  const html = `<p>Click <a href="${verificationUrl}">here</a> to verify your account.</p>`;
+  if (!process.env.EMAIL_USER) {
+    console.log('DEV MODE - No SMTP credentials. Simulated send:');
+    console.log('To:', email);
+    console.log('Subject: Verify Your Email - Personal Finance Tracker');
+    console.log('HTML:', html);
+    return;
+  }
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Verify Your Email - Personal Finance Tracker',
+      html,
+    });
+    console.log(`Verification email sent successfully to ${email}`);
+  } catch (error) {
+    console.error(`Failed to send verification email to ${email}:`, error);
+    throw error;
+  }
 };
 
 export const sendInvitationEmail = async (email: string, groupName: string, inviterName: string) => {
