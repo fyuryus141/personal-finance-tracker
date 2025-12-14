@@ -27,10 +27,9 @@
 }
 
 .login-card {
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px var(--shadow);
+  background: #1a202c;
+  border: 1px solid #4a5568;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
   padding: 40px;
   max-width: 400px;
   width: 100%;
@@ -39,7 +38,7 @@
 
 .login-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px var(--shadow);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.4);
 }
 
 .login-header {
@@ -75,17 +74,17 @@
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-secondary);
+  color: #a0aec0;
   z-index: 1;
 }
 
 .login-input {
   width: 100%;
   padding: 12px 12px 12px 40px;
-  border: 2px solid var(--border);
+  border: 1px solid #4a5568;
   border-radius: 8px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: #2d3748;
+  color: white;
   font-size: 16px;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
   box-sizing: border-box;
@@ -93,30 +92,32 @@
 
 .login-input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.1);
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.2);
 }
 
 .login-input::placeholder {
-  color: var(--text-secondary);
+  color: #a0aec0;
 }
 
 .login-button {
-  background: var(--accent);
+  background: #10b981;
   color: white;
   border: none;
   border-radius: 8px;
-  padding: 12px 24px;
+  padding: 14px 24px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  transition: all 0.3s ease;
   width: 100%;
+  box-shadow: 0 4px 14px rgba(16,185,129,0.4);
 }
 
 .login-button:hover {
-  background: var(--accent-hover);
+  background: #059669;
   transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(16,185,129,0.5);
 }
 
 .login-button:active {
@@ -124,23 +125,37 @@
 }
 
 .login-button:disabled {
-  background: var(--text-secondary);
+  background: #4a5568;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .toggle-link {
   background: none;
   border: none;
-  color: var(--accent);
+  color: #34d399;
   cursor: pointer;
   font-size: 14px;
   text-align: center;
-  margin-top: 16px;
-  transition: color 0.3s ease;
+  margin-top: 20px;
+  transition: all 0.3s ease;
 }
 
 .toggle-link:hover {
-  color: var(--accent-hover);
+  color: #10b981;
   text-decoration: underline;
+}
+
+.glow-title {
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  0%, 100% {
+    text-shadow: 0 0 5px #00ff88, 0 0 10px #00ff88, 0 0 15px #00ff88;
+  }
+  50% {
+    text-shadow: 0 0 20px #00ff88, 0 0 30px #00ff88, 0 0 40px #00ff88;
+  }
 }

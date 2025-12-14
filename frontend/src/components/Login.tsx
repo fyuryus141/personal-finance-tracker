@@ -12,6 +12,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [name, setName] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [backgroundImageIndex, setBackgroundImageIndex] = useState(0);
+  const [error, setError] = useState('');
+  const [showResend, setShowResend] = useState(false);
+
 
   const backgroundImages = [
     '/20606.jpg',
@@ -19,22 +22,29 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     '/elevated-view-coffee-cup-business-budget-plan-eyeglasses-blue-backdrop.jpg',
     '/flat-lay-work-desk-with-agenda-notebook.jpg',
     '/high-view-piggy-bank-notepads.jpg',
-    '/OQECWT0.jpg'
+    '/OQECWT0.jpg',
+    '/20423.jpg',
+    '/35767.jpg',
+    '/59105.jpg',
+    '/finance-investment-banking-cost-concept.jpg',
+    '/frame-device-with-long-term-debt-message.jpg',
+    '/table-with-finance-work-stuff-laptop-money-tablet-pen-papers.jpg',
+    '/top-view-assortment-finance-word-sticky-notes.jpg'
   ];
 
   useEffect(() => {
     const interval = setInterval(() => {
       setBackgroundImageIndex((prevIndex) => (prevIndex + 1) % backgroundImages.length);
-    }, 15000); // Change image every 15 seconds
+    }, 15000);
 
     return () => clearInterval(interval);
-  }, [backgroundImages.length]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const endpoint = isRegister ? '/auth/register' : '/auth/login';
     const body = isRegister ? { email, password, name } : { email, password };
-    const url = `${process.env.REACT_APP_API_BASE}${endpoint}`;
+    const url = `https://financial-tracker-ai-insight-a194fc716874.herokuapp.com${endpoint}`;
     console.log('Attempting login/register fetch to:', url);
 
     try {
@@ -58,7 +68,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       } else {
         const errorData = await response.json();
         console.log('Error data:', errorData);
-        alert('Error: ' + errorData.error);
+        setError(errorData.error || 'Unknown error');
+        if (errorData.error && errorData.error.includes('verify')) {
+          setShowResend(true);
+        } else {
+          alert('Error: ' + errorData.error);
+        }
       }
     } catch (error) {
       console.error('Fetch error:', error);
@@ -67,23 +82,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div
-      className="login-container"
-      style={{
+    <div className="login-container min-h-screen flex items-center justify-center p-4" style={{
         backgroundImage: `url(${backgroundImages[backgroundImageIndex]})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
-      }}
-    >
-      <div className="login-card">
-        <div className="login-header">
-          <h2 className="login-title">
-            {isRegister ? 'Create Account' : 'Welcome Back'}
-          </h2>
-          <p className="login-subtitle">
-            {isRegister ? 'Sign up to get started' : 'Sign in to your account'}
-          </p>
+      }}>
+      <div className="login-card bg-gray-900 border border-gray-700 shadow-2xl rounded-3xl p-8 max-w-md w-full mx-auto">
+        <div className="login-header text-center mb-8">
+          <div className="glow-title text-xl font-black text-white mb-6 flex flex-col items-center drop-shadow-lg">
+            Personal Financial Tracker
+            <span className="text-xs font-medium tracking-wider opacity-90 mt-1">AI-Powered Financial Insights</span>
+          </div>
+          <p className="text-2xl font-bold text-white mb-2">{isRegister ? 'Create Account' : 'Welcome back'}</p>
+          <p className="text-gray-400 text-sm">{isRegister ? 'Create your account to get started' : 'Sign in to your account'}</p>
         </div>
         <form className="login-form" onSubmit={handleSubmit}>
           {isRegister && (
@@ -124,13 +136,55 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <button className="login-button" type="submit">
             {isRegister ? 'Create Account' : 'Sign In'}
           </button>
+          {error && (
+            <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>
+          )}
+          {showResend && (
+            <button
+              type="button"
+              style={{
+                marginTop: '10px',
+                backgroundColor: '#ff9500',
+                color: 'white',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                width: '100%'
+              }}
+              onClick={async () => {
+                const resendUrl = `https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/auth/resend-verification`;
+                try {
+                  const resp = await fetch(resendUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                  });
+                  if (resp.ok) {
+                    const data = await resp.json();
+                    alert(data.message || 'Verification email resent');
+                  } else {
+                    const errData = await resp.json();
+                    alert('Resend failed: ' + (errData.error || 'Unknown error'));
+                  }
+                } catch (e) {
+                  alert('Network error during resend');
+                }
+                setShowResend(false);
+                setError('');
+              }}
+            >
+              Resend verification email
+            </button>
+          )}
         </form>
         <button className="toggle-link" onClick={() => setIsRegister(!isRegister)}>
           {isRegister ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
         </button>
       </div>
     </div>
-  );
+);
 };
 
 export default Login;

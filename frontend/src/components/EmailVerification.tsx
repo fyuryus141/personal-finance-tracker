@@ -7,7 +7,7 @@ const EmailVerification: React.FC = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     if (token) {
-      fetch(`${process.env.REACT_APP_API_BASE}/auth/verify?token=${token}`)
+      fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/auth/verify?token=${token}`)
         .then(response => response.json())
         .then(data => {
           if (data.message) {

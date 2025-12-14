@@ -4,21 +4,13 @@ const ReceiptScanner: React.FC<{
   setAmount: (value: string) => void;
   setDescription: (value: string) => void;
   setDate: (value: string) => void;
-}> = ({ setAmount, setDescription, setDate }) => {
+  user: any;
+}> = ({ setAmount, setDescription, setDate, user }) => {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tier, setTier] = useState<string>('FREE');
-
-  useEffect(() => {
-    const fetchTier = async () => {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/users/1`);
-      const data = await response.json();
-      setTier(data.tier);
-    };
-    fetchTier();
-  }, []);
+  const tier = user.tier || 'FREE';
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
