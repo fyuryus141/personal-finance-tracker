@@ -50,12 +50,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
   };
 
   const handleUpgrade = async (tierName: string) => {
-    console.log('handleUpgrade called with tierName:', tierName);
-    console.log('API_BASE:', API_BASE);
-    console.log('Token present:', !!token);
-    console.log('User id:', user.id);
     try {
-      console.log('Sending fetch to:', `${API_BASE}/api/subscription/upgrade`);
       const response = await fetch(`${API_BASE}/api/subscription/upgrade`, {
         method: 'POST',
         headers: {
@@ -64,16 +59,10 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
         },
         body: JSON.stringify({ tier: tierName }),
       });
-      console.log('Fetch response status:', response.status);
       if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Response not ok, error text:', errorText);
-        throw new Error(`Failed to initiate upgrade: ${response.status} ${response.statusText}`);
+        throw new Error('Failed to initiate upgrade');
       }
-      const data = await response.json();
-      console.log('Response data:', data);
-      const { kofiUrl } = data;
-      console.log('Opening kofiUrl:', kofiUrl);
+      const { kofiUrl } = await response.json();
       window.open(kofiUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
       console.error('Upgrade failed:', error);
