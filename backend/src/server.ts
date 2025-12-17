@@ -58,7 +58,8 @@ app.use(cors({
       'http://localhost:3000',
       'https://localhost:3000',
       'http://127.0.0.1:3000',
-      'http://localhost:5173'
+      'http://localhost:5173',
+      'http://localhost:3001'
     ];
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -122,50 +123,55 @@ app.post('/auth/register', async (req, res) => {
 });
 
 app.post('/auth/login', async (req, res) => {
-  const { email, password } = req.body;
-  console.log('Login attempt for:', email);
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    console.log('User not found');
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-  if (!(await bcrypt.compare(password, user.password))) {
-    console.log('Password mismatch');
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-  console.log('User found, emailVerified:', user.emailVerified, 'verificationToken:', user.verificationToken ? 'set' : 'null');
-  if (user.email !== 'test@business.com' && !user.emailVerified) {
-    let token = user.verificationToken;
-    if (!token) {
-      token = crypto.randomUUID();
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { verificationToken: token }
-      });
-      console.log('Generated new verification token for user:', user.id);
+  try {
+    const { email, password } = req.body;
+    console.log('Login attempt for:', email);
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      console.log('User not found');
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
-    try {
-      await sendVerificationEmail(user.email, token);
-      console.log('Verification email sent/resent for:', user.email);
-    } catch (error) {
-      console.error('Failed to send verification email:', error);
+    if (!(await bcrypt.compare(password, user.password))) {
+      console.log('Password mismatch');
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
-    return res.status(401).json({ error: 'Please verify your email first. A verification email has been sent.' });
-  }
-  // Check if user has categories, if not, create default ones
-  const existingCategories = await prisma.category.findMany({
-    where: { userId: user.id },
-  });
-  if (existingCategories.length === 0) {
-    const defaultCategories = ['Travel', 'Entertainment', 'Shopping', 'Utilities', 'Healthcare', 'Education', 'Groceries'];
-    for (const name of defaultCategories) {
-      await prisma.category.create({
-        data: { name, userId: user.id },
-      });
+    console.log('User found, emailVerified:', user.emailVerified, 'verificationToken:', user.verificationToken ? 'set' : 'null');
+    if (user.email !== 'test@business.com' && !user.emailVerified) {
+      let token = user.verificationToken;
+      if (!token) {
+        token = crypto.randomUUID();
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { verificationToken: token }
+        });
+        console.log('Generated new verification token for user:', user.id);
+      }
+      try {
+        await sendVerificationEmail(user.email, token);
+        console.log('Verification email sent/resent for:', user.email);
+      } catch (error) {
+        console.error('Failed to send verification email:', error);
+      }
+      return res.status(401).json({ error: 'Please verify your email first. A verification email has been sent.' });
     }
+    // Check if user has categories, if not, create default ones
+    const existingCategories = await prisma.category.findMany({
+      where: { userId: user.id },
+    });
+    if (existingCategories.length === 0) {
+      const defaultCategories = ['Travel', 'Entertainment', 'Shopping', 'Utilities', 'Healthcare', 'Education', 'Groceries'];
+      for (const name of defaultCategories) {
+        await prisma.category.create({
+          data: { name, userId: user.id },
+        });
+      }
+    }
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET);
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, tier: user.tier, emailReports: user.emailReports, profilePicture: user.profilePicture ? `/uploads/${user.profilePicture}` : null } });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  const token = jwt.sign({ userId: user.id }, JWT_SECRET);
-  res.json({ token, user: { id: user.id, email: user.email, name: user.name, tier: user.tier, emailReports: user.emailReports, profilePicture: user.profilePicture ? `/uploads/${user.profilePicture}` : null } });
 });
 
 app.get('/auth/verify', async (req, res) => {
@@ -202,7 +208,6 @@ app.post('/auth/resend-verification', async (req, res) => {
     res.status(500).json({ error: 'Failed to send email' });
   }
 });
-
 // Auth middleware
 const authMiddleware = async (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;
