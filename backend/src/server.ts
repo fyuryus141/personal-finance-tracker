@@ -208,6 +208,102 @@ app.post('/auth/resend-verification', async (req, res) => {
     res.status(500).json({ error: 'Failed to send email' });
   }
 });
+
+// TEMPORARY ADMIN ENDPOINT - Remove after use
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'temp-admin-token-change-me';
+
+app.post('/admin/create-user', async (req, res) => {
+  const { email, password, name, tier = 'FREE' } = req.body;
+  const adminToken = req.headers['x-admin-token'];
+
+  if (adminToken !== ADMIN_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  if (!['FREE', 'PREMIUM', 'BUSINESS'].includes(tier)) {
+    return res.status(400).json({ error: 'Invalid tier. Must be FREE, PREMIUM, or BUSINESS' });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name: name || '',
+        tier,
+        emailVerified: true,
+      },
+    });
+
+    // Create default categories
+    const defaultCategories = ['Travel', 'Entertainment', 'Shopping', 'Utilities', 'Healthcare', 'Education', 'Groceries'];
+    for (const catName of defaultCategories) {
+      await prisma.category.create({
+        data: { name: catName, userId: user.id },
+      });
+    }
+
+    console.log(`Admin: Created user ${email} with tier ${tier}`);
+    res.json({ message: `User ${email} created with tier ${tier} successfully`, userId: user.id });
+  } catch (error) {
+    console.error('Admin create error:', error);
+    if (error instanceof Error && 'code' in error && (error as any).code === 'P2002') {
+      res.status(400).json({ error: 'User already exists' });
+    } else {
+      res.status(500).json({ error: 'Failed to create user' });
+    }
+  }
+});
+
+app.post('/admin/update-user-tier', async (req, res) => {
+  const { email, tier, password } = req.body;
+  const adminToken = req.headers['x-admin-token'];
+
+  if (adminToken !== ADMIN_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!email || !tier) {
+    return res.status(400).json({ error: 'Email and tier are required' });
+  }
+
+  if (!['FREE', 'PREMIUM', 'BUSINESS'].includes(tier)) {
+    return res.status(400).json({ error: 'Invalid tier. Must be FREE, PREMIUM, or BUSINESS' });
+  }
+
+  try {
+    const updateData: any = { tier };
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateData.password = hashedPassword;
+    }
+
+    // Set email as verified if not already
+    updateData.emailVerified = true;
+
+    const user = await prisma.user.updateMany({
+      where: { email },
+      data: updateData,
+    });
+
+    if (user.count === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(`Admin: Updated user ${email} to tier ${tier}`);
+    res.json({ message: `User ${email} updated to tier ${tier} successfully` });
+  } catch (error) {
+    console.error('Admin update error:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
 // Auth middleware
 const authMiddleware = async (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;
