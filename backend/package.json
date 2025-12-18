@@ -6,7 +6,8 @@
     "build": "tsc",
     "postbuild": "npx prisma generate",
     "start": "node dist/server.js",
-    "dev": "ts-node src/server.ts"
+    "dev": "ts-node src/server.ts",
+    "migrate": "npx prisma migrate deploy"
   },
   "dependencies": {
     "@google-cloud/vision": "^5.3.4",
