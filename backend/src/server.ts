@@ -52,22 +52,7 @@ const port = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 app.use(cors({
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      'https://rainbow-brioche-b44150.netlify.app',
-      'https://financialtracker-ai-insight.netlify.app',
-      'http://localhost:3000',
-      'https://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://localhost:5173',
-      'http://localhost:3001'
-    ];
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`Not allowed by CORS: ${origin}`));
-    }
-  },
+  origin: true, // Temporarily allow all origins for testing
   credentials: true,
   allowedHeaders: ['Authorization', 'Content-Type']
 }));
