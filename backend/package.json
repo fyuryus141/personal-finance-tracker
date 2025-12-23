@@ -4,7 +4,6 @@
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
-    "postbuild": "npx prisma generate",
     "start": "node dist/server.js",
     "dev": "ts-node src/server.ts",
     "migrate": "npx prisma migrate deploy"

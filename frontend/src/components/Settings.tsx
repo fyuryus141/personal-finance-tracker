@@ -58,7 +58,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
 
   const fetchGroups = async () => {
     try {
-      const response = await fetch('https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/groups', {
+      const response = await fetch('/groups', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {

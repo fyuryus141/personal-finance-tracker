@@ -42,7 +42,7 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, token }) => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const API_BASE = process.env.REACT_APP_API_BASE || 'https://financial-tracker-ai-insight-a194fc716874.herokuapp.com';
+  const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
 
   useEffect(() => {
     if (user && token) {

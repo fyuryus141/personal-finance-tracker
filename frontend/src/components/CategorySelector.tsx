@@ -22,7 +22,8 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ value, onChange, us
   }, [user]);
 
   const fetchCategories = async () => {
-    const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/categories?userId=${user.id}`, {
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
+    const response = await fetch(`${API_BASE}/categories?userId=${user.id}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },

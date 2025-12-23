@@ -70,7 +70,8 @@ const YearlyReport: React.FC<YearlyReportProps> = ({ user, token }) => {
   const fetchYearlyReport = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/reports/yearly?year=${year}`, {
+      const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
+      const response = await fetch(`${API_BASE}/reports/yearly?year=${year}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -88,13 +89,13 @@ const YearlyReport: React.FC<YearlyReportProps> = ({ user, token }) => {
     if (!reportData) return;
     const doc = new jsPDF();
     doc.text(`Yearly Report - ${year}`, 10, 10);
-    doc.text(`Total Spent: $${reportData.totalSpent.toFixed(2)}`, 10, 20);
-    doc.text(`Previous Year: $${reportData.prevYearTotal.toFixed(2)}`, 10, 30);
-    doc.text(`Year-over-Year Change: ${reportData.yearOverYearChange.toFixed(2)}%`, 10, 40);
-    doc.text(`Predicted Next Year: $${reportData.forecast.predictedTotalSpending.toFixed(2)}`, 10, 50);
+    doc.text(`Total Spent: $${reportData.totalSpent?.toFixed(2) || '0.00'}`, 10, 20);
+    doc.text(`Previous Year: $${reportData.prevYearTotal?.toFixed(2) || '0.00'}`, 10, 30);
+    doc.text(`Year-over-Year Change: ${reportData.yearOverYearChange?.toFixed(2) || '0.00'}%`, 10, 40);
+    doc.text(`Predicted Next Year: $${reportData.forecast?.predictedTotalSpending?.toFixed(2) || '0.00'}`, 10, 50);
     let y = 60;
-    reportData.categoryData.forEach(cat => {
-      doc.text(`${cat.category}: $${cat.spent.toFixed(2)} / $${cat.budget.toFixed(2)} (${cat.status})`, 10, y);
+    reportData.categoryData?.forEach(cat => {
+      doc.text(`${cat.category}: $${cat.spent?.toFixed(2) || '0.00'} / $${cat.budget?.toFixed(2) || '0.00'} (${cat.status || 'unknown'})`, 10, y);
       y += 10;
     });
     doc.save(`yearly-report-${year}.pdf`);
@@ -102,7 +103,8 @@ const YearlyReport: React.FC<YearlyReportProps> = ({ user, token }) => {
 
   const exportToCSV = async () => {
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/reports/yearly/csv?year=${year}`, {
+      const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
+      const response = await fetch(`${API_BASE}/reports/yearly/csv?year=${year}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -154,12 +156,12 @@ const YearlyReport: React.FC<YearlyReportProps> = ({ user, token }) => {
     );
   }
 
-  const pieData = reportData.categoryData.map(cat => ({ name: cat.category, value: cat.spent }));
-  const barData = [
+  const pieData = reportData.categoryData?.map(cat => ({ name: cat.category, value: cat.spent })) || [];
+  const barData = reportData ? [
     { year: `${year - 1}`, spending: reportData.prevYearTotal },
     { year: `${year}`, spending: reportData.totalSpent },
-    { year: `${year + 1} (Predicted)`, spending: reportData.forecast.predictedTotalSpending },
-  ];
+    { year: `${year + 1} (Predicted)`, spending: reportData.forecast?.predictedTotalSpending || 0 },
+  ] : [];
 
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', margin: '16px' }}>
@@ -170,27 +172,27 @@ const YearlyReport: React.FC<YearlyReportProps> = ({ user, token }) => {
       </div>
       <div style={{ marginBottom: '16px' }}>
         <h3>Summary</h3>
-        <p>Total Spent: <span style={{ color: 'var(--error)' }}>${reportData.totalSpent.toFixed(2)}</span></p>
-        <p>Previous Year: <span style={{ color: 'var(--text-primary)' }}>${reportData.prevYearTotal.toFixed(2)}</span></p>
+        <p>Total Spent: <span style={{ color: 'var(--error)' }}>${reportData.totalSpent?.toFixed(2) || '0.00'}</span></p>
+        <p>Previous Year: <span style={{ color: 'var(--text-primary)' }}>${reportData.prevYearTotal?.toFixed(2) || '0.00'}</span></p>
         <p>Year-over-Year Change: <span style={{ color: reportData.yearOverYearChange > 0 ? 'var(--error)' : 'var(--success)' }}>
-          {reportData.yearOverYearChange > 0 ? '+' : ''}{reportData.yearOverYearChange.toFixed(2)}%
+          {reportData.yearOverYearChange > 0 ? '+' : ''}{reportData.yearOverYearChange?.toFixed(2) || '0.00'}%
         </span></p>
-        <p>Predicted Next Year: <span style={{ color: 'var(--accent)' }}>${reportData.forecast.predictedTotalSpending.toFixed(2)}</span></p>
+        <p>Predicted Next Year: <span style={{ color: 'var(--accent)' }}>${reportData.forecast?.predictedTotalSpending?.toFixed(2) || '0.00'}</span></p>
       </div>
       <div style={{ marginBottom: '16px' }}>
         <h3>Category Breakdown</h3>
         <ul>
-          {reportData.categoryData.map(cat => (
+          {reportData.categoryData?.map(cat => (
             <li key={cat.category} style={{ color: cat.status === 'over' ? 'var(--error)' : 'var(--success)' }}>
-              {cat.category}: ${cat.spent.toFixed(2)} / ${cat.budget.toFixed(2)} ({cat.status})
+              {cat.category}: ${cat.spent?.toFixed(2) || '0.00'} / ${cat.budget?.toFixed(2) || '0.00'} ({cat.status})
             </li>
           ))}
         </ul>
       </div>
       <div style={{ marginBottom: '16px' }}>
         <h3>Predicted Spending Insights</h3>
-        <p>{reportData.forecast.forecastExplanation}</p>
-        <p><strong>Risks:</strong> {reportData.forecast.risks}</p>
+        <p>{reportData.forecast?.forecastExplanation || 'No forecast available'}</p>
+        <p><strong>Risks:</strong> {reportData.forecast?.risks || 'No risk assessment available'}</p>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', marginBottom: '16px' }}>
         <div style={{ flex: '1 1 300px', minHeight: '300px' }}>
@@ -218,7 +220,7 @@ const YearlyReport: React.FC<YearlyReportProps> = ({ user, token }) => {
         <div style={{ flex: '1 1 300px', minHeight: '300px' }}>
           <h3>Yearly Trends</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={reportData.monthlyData}>
+            <LineChart data={reportData.monthlyData || []}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />

@@ -15,7 +15,8 @@ const SetBudgetForm: React.FC<SetBudgetFormProps> = ({ onBudgetAdded, user, toke
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/budgets`, {
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
+    await fetch(`${API_BASE}/budgets`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -46,7 +47,7 @@ const SetBudgetForm: React.FC<SetBudgetFormProps> = ({ onBudgetAdded, user, toke
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            style={{ width: '100%', padding: '8px', border: '1px solid #757575', borderRadius: '4px' }}
+            style={{ width: '100%', padding: '8px', border: '1px solid #757575', borderRadius: '4px', backgroundColor: '#FFFFFF' }}
             required
           />
         </div>
@@ -57,7 +58,7 @@ const SetBudgetForm: React.FC<SetBudgetFormProps> = ({ onBudgetAdded, user, toke
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            style={{ width: '100%', padding: '8px', border: '1px solid #757575', borderRadius: '4px', color: '#4CAF50' }}
+            style={{ width: '100%', padding: '8px', border: '1px solid #757575', borderRadius: '4px', color: '#4CAF50', backgroundColor: '#FFFFFF' }}
             required
           />
         </div>
@@ -66,7 +67,7 @@ const SetBudgetForm: React.FC<SetBudgetFormProps> = ({ onBudgetAdded, user, toke
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            style={{ width: '100%', padding: '8px', border: '1px solid #757575', borderRadius: '4px' }}
+            style={{ width: '100%', padding: '8px', border: '1px solid #757575', borderRadius: '4px', backgroundColor: '#FFFFFF' }}
           >
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>

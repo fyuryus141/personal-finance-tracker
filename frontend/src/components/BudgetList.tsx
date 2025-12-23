@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Edit, X, Save } from 'lucide-react';
 import BudgetProgress from './BudgetProgress';
 
 interface Budget {
@@ -40,11 +41,18 @@ const BudgetList: React.FC<BudgetListProps> = ({ user, token }) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [alerts, setAlerts] = useState<BudgetAlert[]>([]);
   const [showAlerts, setShowAlerts] = useState(true);
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editPeriod, setEditPeriod] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchBudgets();
       fetchExpenses();
+      fetchCategories();
       if (user.tier === 'PREMIUM' || user.tier === 'BUSINESS') {
         fetchAlerts();
       }
@@ -52,7 +60,8 @@ const BudgetList: React.FC<BudgetListProps> = ({ user, token }) => {
   }, [user]);
 
   const fetchBudgets = async () => {
-    const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/budgets?userId=${user.id}`, {
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
+    const response = await fetch(`${API_BASE}/budgets?userId=${user.id}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -62,7 +71,8 @@ const BudgetList: React.FC<BudgetListProps> = ({ user, token }) => {
   };
 
   const fetchExpenses = async () => {
-    const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/expenses?userId=${user.id}`, {
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
+    const response = await fetch(`${API_BASE}/expenses?userId=${user.id}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -88,6 +98,24 @@ const BudgetList: React.FC<BudgetListProps> = ({ user, token }) => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/categories`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setCategories(data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+    }
+  };
+
   const calculateSpent = (categoryId: number, period: string) => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -100,6 +128,46 @@ const BudgetList: React.FC<BudgetListProps> = ({ user, token }) => {
                expenseDate.getFullYear() === currentYear;
       })
       .reduce((sum, expense) => sum + expense.amount, 0);
+  };
+
+  const handleEditBudget = (budget: Budget) => {
+    setEditingBudget(budget);
+    setEditName(budget.name);
+    setEditAmount(budget.amount.toString());
+    setEditPeriod(budget.period);
+    setEditCategoryId(budget.categoryId.toString());
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingBudget) return;
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/budgets/${editingBudget.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: editName,
+          amount: parseFloat(editAmount),
+          period: editPeriod,
+          categoryId: parseInt(editCategoryId),
+        }),
+      });
+      if (response.ok) {
+        setEditingBudget(null);
+        fetchBudgets(); // Refresh list
+      } else {
+        alert('Failed to update budget');
+      }
+    } catch (error) {
+      console.error('Error updating budget:', error);
+      alert('Error updating budget');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingBudget(null);
   };
 
   return (
@@ -171,15 +239,89 @@ const BudgetList: React.FC<BudgetListProps> = ({ user, token }) => {
             <li key={budget.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-primary)' }}>{budget.name} ({budget.category.name})</span>
-                <span style={{ color: isOver ? 'var(--error)' : 'var(--success)' }}>
-                  ${spent.toFixed(2)} / ${budget.amount.toFixed(2)}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <button
+                    onClick={() => handleEditBudget(budget)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '8px', color: 'var(--text-primary)' }}
+                    title="Edit budget"
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <span style={{ color: isOver ? 'var(--error)' : 'var(--success)' }}>
+                    ${spent.toFixed(2)} / ${budget.amount.toFixed(2)}
+                  </span>
+                </div>
               </div>
               <BudgetProgress spent={spent} budget={budget.amount} />
             </li>
           );
         })}
       </ul>
+
+      {editingBudget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-600 rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-white mb-6">Edit Budget</h3>
+            <div className="space-y-4">
+              <div className="input-group">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="input-group">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Amount</label>
+                <input
+                  type="number"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="input-group">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Period</label>
+                <select
+                  value={editPeriod}
+                  onChange={(e) => setEditPeriod(e.target.value)}
+                  className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+              <div className="input-group">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                <select
+                  value={editCategoryId}
+                  onChange={(e) => setEditCategoryId(e.target.value)}
+                  className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={handleSaveEdit}
+                className="login-button flex-1"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="login-button bg-red-600 hover:bg-red-700 flex-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

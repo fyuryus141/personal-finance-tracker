@@ -55,6 +55,7 @@ app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = [
       'https://rainbow-brioche-b44150.netlify.app',
+      'https://financialtracker-ai-insight.netlify.app',
       'http://localhost:3000',
       'https://localhost:3000',
       'http://127.0.0.1:3000',

@@ -19,7 +19,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
     }
   }, [user]);
 
-  const API_BASE = process.env.REACT_APP_API_BASE || 'https://financial-tracker-ai-insight-a194fc716874.herokuapp.com';
+  const API_BASE = 'https://financial-tracker-ai-insight-a194fc716874.herokuapp.com';
 
   const fetchSubscriptions = async () => {
     try {
@@ -110,6 +110,9 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
         'PDF Export',
         'Custom Reports',
         'Advanced AI',
+        'Comparative Analysis',
+        'Feature Voting',
+        'Usage Dashboard',
         'Small Teams (up to 3)',
       ],
       buttonText: currentTier === 'PREMIUM' ? 'Current Plan' : 'Upgrade to Premium',
@@ -128,10 +131,13 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
         'PDF Export',
         'Custom Reports',
         'Advanced AI',
-        'Small Teams (up to 3)',
+        'Comparative Analysis',
+        'Feature Voting',
+        'Usage Dashboard',
         'Unlimited Teams (Groups)',
         'Invoicing',
         'Tax Reports',
+        'Priority Support',
       ],
       buttonText: currentTier === 'BUSINESS' ? 'Current Plan' : 'Upgrade to Business',
       gradientFrom: 'orange',
@@ -211,6 +217,34 @@ const Subscription: React.FC<SubscriptionProps> = ({ user, token }) => {
                   )}
                 </div>
               ))}
+            </div>
+          </section>
+        )}
+
+        {currentTier !== 'FREE' && (
+          <section className="mt-16">
+            <h3 className="text-3xl font-black text-text-primary mb-8 text-center">Usage Dashboard</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-bg-primary border border-border rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                <h4 className="text-xl font-bold text-text-primary mb-2">Reports Generated</h4>
+                <p className="text-3xl font-black text-accent">12</p>
+                <p className="text-text-secondary text-sm">This month</p>
+              </div>
+              <div className="bg-bg-primary border border-border rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                <h4 className="text-xl font-bold text-text-primary mb-2">AI Insights Used</h4>
+                <p className="text-3xl font-black text-accent">8</p>
+                <p className="text-text-secondary text-sm">This month</p>
+              </div>
+              <div className="bg-bg-primary border border-border rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                <h4 className="text-xl font-bold text-text-primary mb-2">Expenses Tracked</h4>
+                <p className="text-3xl font-black text-accent">45</p>
+                <p className="text-text-secondary text-sm">This month</p>
+              </div>
+              <div className="bg-bg-primary border border-border rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                <h4 className="text-xl font-bold text-text-primary mb-2">Budgets Created</h4>
+                <p className="text-3xl font-black text-accent">3</p>
+                <p className="text-text-secondary text-sm">Active</p>
+              </div>
             </div>
           </section>
         )}

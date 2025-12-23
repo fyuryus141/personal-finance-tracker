@@ -30,6 +30,13 @@ function App() {
   const [tags, setTags] = useState<string[]>([]);
   const [currentView, setCurrentView] = useState('dashboard');
   const [reportType, setReportType] = useState('monthly');
+  const [quickStats, setQuickStats] = useState({ totalExpenses: 0, totalBudget: 0, insightsAvailable: true });
+  const [comparisonData, setComparisonData] = useState({
+    currentMonth: 0,
+    lastMonth: 0,
+    currentYear: 0,
+    lastYear: 0,
+  });
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
@@ -70,7 +77,7 @@ function App() {
       const payload = decodeJWT(token);
       if (payload && payload.userId) {
         const uid = payload.userId;
-        const API_BASE = process.env.REACT_APP_API_BASE || 'https://financial-tracker-ai-insight-a194fc716874.herokuapp.com';
+        const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
         fetch(`${API_BASE}/users/${uid}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -91,6 +98,108 @@ function App() {
     }
   }, [token, user]);
 
+  useEffect(() => {
+    if (user && token) {
+      const fetchQuickStats = async () => {
+        try {
+          const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
+
+          // Fetch expenses
+          const expensesResponse = await fetch(`${API_BASE}/expenses`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          const expenses = expensesResponse.ok ? await expensesResponse.json() : [];
+
+          // Calculate total expenses this month
+          const now = new Date();
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+          const monthlyExpenses = expenses.filter((exp: any) => {
+            const expDate = new Date(exp.date);
+            return expDate.getMonth() === currentMonth && expDate.getFullYear() === currentYear;
+          });
+          const totalExpenses = monthlyExpenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
+
+          // Fetch budgets
+          const budgetsResponse = await fetch(`${API_BASE}/budgets`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          const budgets = budgetsResponse.ok ? await budgetsResponse.json() : [];
+          const totalBudget = budgets.reduce((sum: number, budget: any) => sum + budget.amount, 0);
+
+          setQuickStats({
+            totalExpenses,
+            totalBudget,
+            insightsAvailable: true,
+          });
+        } catch (error) {
+          console.error('Error fetching quick stats:', error);
+        }
+      };
+      fetchQuickStats();
+    }
+  }, [user, token]);
+
+  useEffect(() => {
+    if (user && token && currentView === 'comparison') {
+      const fetchComparisonData = async () => {
+        try {
+          const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
+
+          // Fetch expenses
+          const expensesResponse = await fetch(`${API_BASE}/expenses`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          const expenses = expensesResponse.ok ? await expensesResponse.json() : [];
+
+          const now = new Date();
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+
+          // Current month
+          const currentMonthExpenses = expenses.filter((exp: any) => {
+            const expDate = new Date(exp.date);
+            return expDate.getMonth() === currentMonth && expDate.getFullYear() === currentYear;
+          });
+          const currentMonthTotal = currentMonthExpenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
+
+          // Last month
+          const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+          const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+          const lastMonthExpenses = expenses.filter((exp: any) => {
+            const expDate = new Date(exp.date);
+            return expDate.getMonth() === lastMonth && expDate.getFullYear() === lastMonthYear;
+          });
+          const lastMonthTotal = lastMonthExpenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
+
+          // Current year
+          const currentYearExpenses = expenses.filter((exp: any) => {
+            const expDate = new Date(exp.date);
+            return expDate.getFullYear() === currentYear;
+          });
+          const currentYearTotal = currentYearExpenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
+
+          // Last year
+          const lastYearExpenses = expenses.filter((exp: any) => {
+            const expDate = new Date(exp.date);
+            return expDate.getFullYear() === currentYear - 1;
+          });
+          const lastYearTotal = lastYearExpenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
+
+          setComparisonData({
+            currentMonth: currentMonthTotal,
+            lastMonth: lastMonthTotal,
+            currentYear: currentYearTotal,
+            lastYear: lastYearTotal,
+          });
+        } catch (error) {
+          console.error('Error fetching comparison data:', error);
+        }
+      };
+      fetchComparisonData();
+    }
+  }, [user, token, currentView]);
+
   const handleLogin = (newToken: string, newUser: any) => {
     setToken(newToken);
     setUser(newUser);
@@ -108,7 +217,8 @@ function App() {
   const handleUserUpdate = async (updatedUser: any) => {
     // Fetch the complete updated user data from backend
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/users/${updatedUser.id}`, {
+      const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
+      const response = await fetch(`${API_BASE}/users/${updatedUser.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -162,7 +272,38 @@ function App() {
         console.log('Rendering dashboard components');
         try {
           return (
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            <div>
+              {/* Hero Section */}
+              <div className="max-w-4xl mx-auto text-center mb-12 p-8 bg-bg-primary/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50">
+                <h2 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-accent to-blue-500 bg-clip-text text-transparent mb-4">
+                  Welcome back, {user.name}!
+                </h2>
+                <p className="text-lg text-text-secondary mb-6">
+                  Here's your financial overview. Manage expenses, track budgets, and gain insights.
+                </p>
+                {quickStats.totalExpenses > quickStats.totalBudget && quickStats.totalBudget > 0 && (
+                  <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 mb-6 backdrop-blur-sm">
+                    <p className="text-red-400 font-semibold">⚠️ Budget Alert</p>
+                    <p className="text-red-300 text-sm">Your expenses this month (${quickStats.totalExpenses.toFixed(2)}) exceed your total budget (${quickStats.totalBudget.toFixed(2)}).</p>
+                  </div>
+                )}
+                <div className="flex flex-wrap justify-center gap-6 text-sm">
+                  <div className="bg-bg-secondary/50 rounded-xl p-4 backdrop-blur-sm border border-border/30">
+                    <p className="text-text-primary font-semibold">This Month's Expenses</p>
+                    <p className="text-accent">${quickStats.totalExpenses.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-bg-secondary/50 rounded-xl p-4 backdrop-blur-sm border border-border/30">
+                    <p className="text-text-primary font-semibold">Total Budget</p>
+                    <p className="text-accent">${quickStats.totalBudget.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-bg-secondary/50 rounded-xl p-4 backdrop-blur-sm border border-border/30">
+                    <p className="text-text-primary font-semibold">AI Insights</p>
+                    <p className="text-accent">{quickStats.insightsAvailable ? 'Available' : 'Unavailable'}</p>
+                  </div>
+                </div>
+              </div>
+              {/* Dashboard Grid */}
+              <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               <div className="bg-bg-primary border border-border rounded-3xl p-8 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group"><SetBudgetForm onBudgetAdded={handleBudgetAdded} user={user} token={token} /></div>
               <div className="bg-bg-primary border border-border rounded-3xl p-8 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group"><BudgetList key={budgetRefreshKey} user={user} token={token} /></div>
               <div className="bg-bg-primary border border-border rounded-3xl p-8 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group"><ReceiptScanner
@@ -189,6 +330,7 @@ function App() {
               <div className="bg-bg-primary border border-border rounded-3xl p-8 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group"><ExpenseList key={refreshKey} user={user} token={token} /></div>
               <div className="bg-bg-primary border border-border rounded-3xl p-8 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group"><AIInsights user={user} token={token} /></div>
               <div className="bg-bg-primary border border-border rounded-3xl p-8 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group col-span-full lg:col-span-2"><SpendingCharts user={user} token={token} /></div>
+              </div>
             </div>
           );
         } catch (error) {
@@ -199,36 +341,88 @@ function App() {
         console.log('Rendering reports');
         return (
           <div>
-            <div className="flex flex-wrap gap-4 justify-center mb-12 p-4 bg-bg-secondary/50 rounded-2xl backdrop-blur-sm border border-border/30">
-              <button
-                onClick={() => setReportType('monthly')}
-                className={`px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] bg-bg-primary border-2 border-transparent hover:border-accent hover:bg-accent hover:text-bg-primary text-text-primary backdrop-blur-sm ${reportType === 'monthly' ? 'bg-accent text-bg-primary border-accent ring-4 ring-accent/30 shadow-xl !translate-y-0 scale-[1.05]' : ''}`}
-              >
-                Monthly
-              </button>
-              {user.tier !== 'FREE' && (
+            <div className="flex flex-col items-center mb-12">
+              <div className="flex flex-wrap gap-4 justify-center mb-6 p-4 bg-bg-secondary/50 rounded-2xl backdrop-blur-sm border border-border/30">
                 <button
-                  onClick={() => setReportType('yearly')}
-                  className={`px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] bg-bg-primary border-2 border-transparent hover:border-accent hover:bg-accent hover:text-bg-primary text-text-primary backdrop-blur-sm ${reportType === 'yearly' ? 'bg-accent text-bg-primary border-accent ring-4 ring-accent/30 shadow-xl !translate-y-0 scale-[1.05]' : ''}`}
+                  onClick={() => setReportType('monthly')}
+                  className={`px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] bg-bg-primary border-2 border-transparent hover:border-accent hover:bg-accent hover:text-bg-primary text-text-primary backdrop-blur-sm ${reportType === 'monthly' ? 'bg-accent text-bg-primary border-accent ring-4 ring-accent/30 shadow-xl !translate-y-0 scale-[1.05]' : ''}`}
                 >
-                  Yearly
+                  Monthly
                 </button>
-              )}
+                {user.tier !== 'FREE' && (
+                  <button
+                    onClick={() => setReportType('yearly')}
+                    className={`px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] bg-bg-primary border-2 border-transparent hover:border-accent hover:bg-accent hover:text-bg-primary text-text-primary backdrop-blur-sm ${reportType === 'yearly' ? 'bg-accent text-bg-primary border-accent ring-4 ring-accent/30 shadow-xl !translate-y-0 scale-[1.05]' : ''}`}
+                  >
+                    Yearly
+                  </button>
+                )}
+                {(user.tier === 'PREMIUM' || user.tier === 'BUSINESS') && (
+                  <button
+                    onClick={() => setReportType('custom')}
+                    className={`px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] bg-bg-primary border-2 border-transparent hover:border-accent hover:bg-accent hover:text-bg-primary text-text-primary backdrop-blur-sm ${reportType === 'custom' ? 'bg-accent text-bg-primary border-accent ring-4 ring-accent/30 shadow-xl !translate-y-0 scale-[1.05]' : ''}`}
+                  >
+                    Custom Range
+                  </button>
+                )}
+              </div>
+              <p className="text-text-secondary text-center max-w-2xl">
+                Select a report type to view detailed insights into your spending patterns, budget performance, and financial trends. Premium users have access to yearly and custom range reports.
+              </p>
               {(user.tier === 'PREMIUM' || user.tier === 'BUSINESS') && (
-                <button
-                  onClick={() => setReportType('custom')}
-                  className={`px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] bg-bg-primary border-2 border-transparent hover:border-accent hover:bg-accent hover:text-bg-primary text-text-primary backdrop-blur-sm ${reportType === 'custom' ? 'bg-accent text-bg-primary border-accent ring-4 ring-accent/30 shadow-xl !translate-y-0 scale-[1.05]' : ''}`}
-                >
-                  Custom Range
-                </button>
+                <div className="mt-6">
+                  <button
+                    onClick={() => setCurrentView('comparison')}
+                    className="px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-2 border-transparent hover:border-white/50"
+                  >
+                    Compare Periods
+                  </button>
+                </div>
               )}
             </div>
-            {reportType === 'monthly' ? (
-              <MonthlyReport user={user} token={token} />
-            ) : reportType === 'yearly' ? (
-              <YearlyReport user={user} token={token} />
-            ) : (
-              <CustomDateRangeReport user={user} token={token} />
+            <div className="mb-8">
+              {reportType === 'monthly' ? (
+                <MonthlyReport user={user} token={token} />
+              ) : reportType === 'yearly' ? (
+                <YearlyReport user={user} token={token} />
+              ) : (
+                <CustomDateRangeReport user={user} token={token} />
+              )}
+            </div>
+            {(user.tier === 'PREMIUM' || user.tier === 'BUSINESS') && (
+              <div className="max-w-4xl mx-auto p-6 bg-bg-primary/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50">
+                <h3 className="text-xl font-bold text-accent mb-4">Premium Analytics</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-bg-secondary/50 rounded-xl border border-border/30">
+                    <h4 className="font-semibold text-text-primary mb-2">Automated Email Reports</h4>
+                    <p className="text-text-secondary text-sm">Schedule weekly/monthly PDF reports to your email.</p>
+                    <button className="mt-2 px-4 py-2 bg-accent text-bg-primary rounded-lg hover:bg-accent-hover transition-colors">
+                      Set Up Email Reports
+                    </button>
+                  </div>
+                  <div className="p-4 bg-bg-secondary/50 rounded-xl border border-border/30">
+                    <h4 className="font-semibold text-text-primary mb-2">Tax Report Generator</h4>
+                    <p className="text-text-secondary text-sm">Auto-generate tax-deductible summaries for filing.</p>
+                    <button className="mt-2 px-4 py-2 bg-accent text-bg-primary rounded-lg hover:bg-accent-hover transition-colors">
+                      Generate Tax Report
+                    </button>
+                  </div>
+                  <div className="p-4 bg-bg-secondary/50 rounded-xl border border-border/30">
+                    <h4 className="font-semibold text-text-primary mb-2">Anomaly Detection</h4>
+                    <p className="text-text-secondary text-sm">AI-powered alerts for unusual spending patterns.</p>
+                    <button className="mt-2 px-4 py-2 bg-accent text-bg-primary rounded-lg hover:bg-accent-hover transition-colors">
+                      View Anomalies
+                    </button>
+                  </div>
+                  <div className="p-4 bg-bg-secondary/50 rounded-xl border border-border/30">
+                    <h4 className="font-semibold text-text-primary mb-2">Comparative Analysis</h4>
+                    <p className="text-text-secondary text-sm">Compare spending across periods with detailed breakdowns.</p>
+                    <button className="mt-2 px-4 py-2 bg-accent text-bg-primary rounded-lg hover:bg-accent-hover transition-colors">
+                      Compare Periods
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         );
@@ -241,6 +435,32 @@ function App() {
       case 'feedback':
         console.log('Rendering feedback');
         return <Feedback />;
+      case 'comparison':
+        console.log('Rendering comparison');
+        const monthChange = comparisonData.lastMonth > 0 ? ((comparisonData.currentMonth - comparisonData.lastMonth) / comparisonData.lastMonth * 100).toFixed(1) : '0.0';
+        const yearChange = comparisonData.lastYear > 0 ? ((comparisonData.currentYear - comparisonData.lastYear) / comparisonData.lastYear * 100).toFixed(1) : '0.0';
+        const monthChangeNum = parseFloat(monthChange);
+        const yearChangeNum = parseFloat(yearChange);
+        const avgMonthlyCurrent = comparisonData.currentYear / 12;
+        const avgMonthlyLast = comparisonData.lastYear / 12;
+        return (
+          <div className="max-w-4xl mx-auto p-8 bg-bg-primary/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50">
+            <h2 className="text-3xl font-bold text-text-primary mb-6 text-center">Period Comparison</h2>
+            <p className="text-text-secondary text-center mb-8">Compare your spending across different time periods.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-bg-secondary/50 rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+                <h3 className="text-xl font-bold text-text-primary mb-4">This Month vs Last Month</h3>
+                <p className="text-text-secondary">Total Spent: ${comparisonData.currentMonth.toFixed(2)} vs ${comparisonData.lastMonth.toFixed(2)} ({monthChangeNum > 0 ? '+' : ''}{monthChange}%)</p>
+                <p className="text-text-secondary">Change: {comparisonData.currentMonth > comparisonData.lastMonth ? 'Increased' : comparisonData.currentMonth < comparisonData.lastMonth ? 'Decreased' : 'Same'}</p>
+              </div>
+              <div className="bg-bg-secondary/50 rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+                <h3 className="text-xl font-bold text-text-primary mb-4">This Year vs Last Year</h3>
+                <p className="text-text-secondary">Total Spent: ${comparisonData.currentYear.toFixed(2)} vs ${comparisonData.lastYear.toFixed(2)} ({yearChangeNum > 0 ? '+' : ''}{yearChange}%)</p>
+                <p className="text-text-secondary">Avg Monthly: ${avgMonthlyCurrent.toFixed(2)} vs ${avgMonthlyLast.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+        );
       default:
         console.log('Unknown view:', currentView);
         return null;
@@ -248,7 +468,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-gray-800 p-4 sm:p-6 lg:p-8 transition-colors duration-300">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-gray-800 dark:to-indigo-900 p-4 sm:p-6 lg:p-8 transition-colors duration-300">
       <header className="mx-auto max-w-4xl bg-bg-primary/80 backdrop-blur-xl rounded-3xl p-8 mb-8 shadow-2xl border border-border/50 hover:shadow-3xl hover:-translate-y-2 transition-all duration-500 text-center">
         <h1 className="text-4xl lg:text-5xl font-black bg-gradient-to-r from-accent via-blue-500 to-indigo-600 bg-clip-text text-transparent mb-6 drop-shadow-lg">Personal Finance Tracker</h1>
         {user && (

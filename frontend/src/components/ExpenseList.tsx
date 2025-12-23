@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Receipt, Edit } from 'lucide-react';
+import { Receipt, Edit, X, Save } from 'lucide-react';
 
 interface Expense {
   id: number;
   amount: number;
   description: string;
   date: string;
+  categoryId: number;
   category: {
     name: string;
   };
@@ -26,10 +27,18 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ user, token }) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [filter, setFilter] = useState('');
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchExpenses();
+      fetchCategories();
     }
   }, [user]);
 
@@ -49,6 +58,24 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ user, token }) => {
     } catch (error) {
       console.error('Error fetching expenses:', error);
       setExpenses([]);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/categories`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setCategories(data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
     }
   };
 
@@ -103,6 +130,48 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ user, token }) => {
     }
   };
 
+  const handleEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setEditAmount(expense.amount.toString());
+    setEditDescription(expense.description);
+    setEditDate(expense.date.split('T')[0]);
+    setEditCategoryId(expense.categoryId?.toString() || '');
+    setEditTags(expense.tags || []);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingExpense) return;
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE}/expenses/${editingExpense.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount: parseFloat(editAmount),
+          description: editDescription,
+          date: new Date(editDate),
+          categoryId: parseInt(editCategoryId),
+          tags: editTags,
+        }),
+      });
+      if (response.ok) {
+        setEditingExpense(null);
+        fetchExpenses(); // Refresh list
+      } else {
+        alert('Failed to update expense');
+      }
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      alert('Error updating expense');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingExpense(null);
+  };
+
   return (
     <div className="expense-list">
       <h2 className="component-title">
@@ -131,6 +200,13 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ user, token }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span className="expense-description">{expense.description}</span>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <button
+                    onClick={() => handleEditExpense(expense)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '8px', color: 'var(--text-primary)' }}
+                    title="Edit expense"
+                  >
+                    <Edit size={16} />
+                  </button>
                   {user.tier === 'BUSINESS' && (
                     <button
                       onClick={() => handleEditTags(expense.id, expense.tags || [])}
@@ -155,6 +231,80 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ user, token }) => {
           );
         })}
       </ul>
+
+      {editingExpense && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-600 rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-white mb-6">Edit Expense</h3>
+            <div className="space-y-4">
+              <div className="input-group">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Amount</label>
+                <input
+                  type="number"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="input-group">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                <input
+                  type="text"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="input-group">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Date</label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="input-group">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                <select
+                  value={editCategoryId}
+                  onChange={(e) => setEditCategoryId(e.target.value)}
+                  className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+              {user.tier === 'BUSINESS' && (
+                <div className="input-group">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Tags (comma separated)</label>
+                  <input
+                    type="text"
+                    value={editTags.join(', ')}
+                    onChange={(e) => setEditTags(e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}
+                    className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={handleSaveEdit}
+                className="login-button flex-1"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="login-button bg-red-600 hover:bg-red-700 flex-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -32,7 +32,8 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ onExpenseAdded, amount,
     if (user.tier === 'BUSINESS') {
       body.tags = tags;
     }
-    await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/expenses`, {
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001';
+    await fetch(`${API_BASE}/expenses`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

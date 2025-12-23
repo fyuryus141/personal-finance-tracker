@@ -44,6 +44,12 @@ const Feedback: React.FC = () => {
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [user, setUser] = useState<any>(null);
   const [submitProgress, setSubmitProgress] = useState(0);
+  const [featureVotes, setFeatureVotes] = useState<{ [key: string]: number }>({
+    'Mobile App': 42,
+    'Advanced Analytics': 38,
+    'Receipt OCR': 35,
+    'Budget Templates': 29,
+  });
 
   const { control, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm({
     resolver: yupResolver(feedbackSchema),
@@ -195,6 +201,21 @@ const Feedback: React.FC = () => {
     }
     setExpandedItems(newSet);
   };
+
+  const handleVote = (feature: string) => {
+    const newVotes = { ...featureVotes };
+    newVotes[feature] += 1;
+    setFeatureVotes(newVotes);
+    localStorage.setItem('featureVotes', JSON.stringify(newVotes));
+    setMessage({ type: 'success', text: `Voted for ${feature}!` });
+  };
+
+  useEffect(() => {
+    const storedVotes = localStorage.getItem('featureVotes');
+    if (storedVotes) {
+      setFeatureVotes(JSON.parse(storedVotes));
+    }
+  }, []);
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-950 animate-in fade-in duration-500">
@@ -433,6 +454,57 @@ const Feedback: React.FC = () => {
             )}
           </div>
         </div>
+
+        {user && user.tier !== 'FREE' && (
+          <div className="mt-12 relative z-10">
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border-2 border-emerald-200/50 dark:border-emerald-800/50 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
+              <h3 className="text-3xl font-bold text-emerald-800 dark:text-emerald-200 mb-6 text-center">Feature Voting</h3>
+              <p className="text-lg text-emerald-700 dark:text-emerald-300 mb-8 text-center">Vote for features you'd like to see next!</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+                  <h4 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-3">Mobile App</h4>
+                  <p className="text-slate-600 dark:text-slate-400 mb-4">Native iOS and Android apps for on-the-go tracking.</p>
+                  <button
+                    onClick={() => handleVote('Mobile App')}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    👍 Vote ({featureVotes['Mobile App']})
+                  </button>
+                </div>
+                <div className="bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+                  <h4 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-3">Advanced Analytics</h4>
+                  <p className="text-slate-600 dark:text-slate-400 mb-4">Predictive spending insights and trend analysis.</p>
+                  <button
+                    onClick={() => handleVote('Advanced Analytics')}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    👍 Vote ({featureVotes['Advanced Analytics']})
+                  </button>
+                </div>
+                <div className="bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+                  <h4 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-3">Receipt OCR</h4>
+                  <p className="text-slate-600 dark:text-slate-400 mb-4">Automatic expense entry from receipt photos.</p>
+                  <button
+                    onClick={() => handleVote('Receipt OCR')}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    👍 Vote ({featureVotes['Receipt OCR']})
+                  </button>
+                </div>
+                <div className="bg-white/70 dark:bg-slate-800/70 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+                  <h4 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-3">Budget Templates</h4>
+                  <p className="text-slate-600 dark:text-slate-400 mb-4">Pre-built budget templates for different lifestyles.</p>
+                  <button
+                    onClick={() => handleVote('Budget Templates')}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    👍 Vote ({featureVotes['Budget Templates']})
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {message && (
           <div className={`fixed top-6 right-6 w-96 p-6 rounded-3xl shadow-2xl backdrop-blur-xl border-2 transform translate-x-full animate-slide-in-from-right-96 fade-in duration-300 z-50 group ${message.type === 'success' ? 'bg-emerald-500/95 border-emerald-400/60 text-white shadow-emerald-500/25' : 'bg-red-500/95 border-red-400/60 text-white shadow-red-500/25'} hover:!translate-x-0 transition-all duration-300`} role="alert">
