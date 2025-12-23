@@ -32,7 +32,7 @@ const ReceiptScanner: React.FC<{
     formData.append('receipt', file);
 
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/ocr`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/ocr`, {
         method: 'POST',
         body: formData,
       });

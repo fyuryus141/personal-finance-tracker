@@ -72,7 +72,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
 
   const fetchInvitations = async () => {
     try {
-      const response = await fetch('https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/invitations', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/invitations`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
@@ -87,7 +87,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
   const handleCreateGroup = async () => {
     if (!groupName.trim()) return;
     try {
-      const response = await fetch('https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/groups', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/groups`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
   const handleInvite = async (groupId: number) => {
     if (!inviteEmail.trim()) return;
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/groups/${groupId}/invite`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/groups/${groupId}/invite`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,7 +131,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
 
   const handleAcceptInvitation = async (id: number) => {
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/invitations/${id}/accept`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/invitations/${id}/accept`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -149,7 +149,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
 
   const handleDeclineInvitation = async (id: number) => {
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/invitations/${id}/decline`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/invitations/${id}/decline`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -178,7 +178,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
     setMessage(null);
     console.log('Updating profile', data);
     try {
-      const nameResponse = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/users/${user.id}`, {
+      const nameResponse = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/users/${user.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -203,7 +203,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
         formData.append('profilePicture', profilePicture);
 
         console.log('Uploading profile picture');
-        const picResponse = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/users/${user.id}/profile-picture`, {
+        const picResponse = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/users/${user.id}/profile-picture`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -242,7 +242,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
     setMessage(null);
     console.log('Updating password', { currentPassword: '***', newPassword: '***' });
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/users/${user.id}/password`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/users/${user.id}/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -271,7 +271,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
     setLoading(true);
     setMessage(null);
     console.log('Updating notifications', { emailReports });
-    const url = `https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/users/${user.id}/notifications`;
+    const url = `${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/users/${user.id}/notifications`;
     console.log('Sending PUT request to:', url);
     console.log('Request body:', JSON.stringify({ emailReports }));
     try {
@@ -304,7 +304,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
     setMessage(null);
     console.log('Exporting data');
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/users/${user.id}/export`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/users/${user.id}/export`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -337,7 +337,7 @@ const Settings: React.FC<SettingsProps> = ({ user, token, onUserUpdate, onNaviga
     setMessage(null);
     console.log('Deleting account');
     try {
-      const response = await fetch(`https://financial-tracker-ai-insight-a194fc716874.herokuapp.com/users/${user.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE || 'http://localhost:3001'}/users/${user.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
